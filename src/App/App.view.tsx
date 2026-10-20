@@ -33,8 +33,8 @@ const PAGES: readonly Page[] = ['graphs', 'import', 'playlists', 'settings', 'se
 const isPage = (key: string): key is Page => PAGES.some((p) => p === key);
 
 export interface AppViewProps {
-  columnSettings: ColumnSettings;
   clearHistory: () => Promise<void>;
+  columnSettings: ColumnSettings;
   config: AppConfig;
   history: null | StoredHistory;
   isDark: boolean;
