@@ -1,0 +1,22 @@
+/* antd styles everything inside ConfigProvider; this only resets the page frame. */
+html,
+body,
+#root {
+  margin: 0;
+  min-height: 100%;
+}
+
+/* antd Tags are inline-block with a fixed line-height, so when a row stretches them the text sits
+   at the top. Centre their content however tall they end up. */
+.ant-tag {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  vertical-align: middle;
+}
+
+body {
+  font-family:
+    -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}

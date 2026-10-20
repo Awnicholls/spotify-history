@@ -1,0 +1,164 @@
+name: Release
+
+# Every push to main builds macOS, Windows and Linux installers and publishes them as a GitHub
+# Release with the next version tag (v0.1.0, v0.1.1, ...).
+#
+# Version bumps (from the latest v* tag):
+#   - patch by default
+#   - "#minor" or "#major" anywhere in the head commit message bumps that part instead
+#   - "[skip release]" in the commit message skips the release entirely
+#   - Run manually from the Actions tab to pick patch / minor / major
+# The first release uses the version in package.json as-is.
+#
+# The tag is only created once every build has succeeded, so a failed build never burns a version.
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - '**.md'
+      - '.idea/**'
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: Version bump
+        type: choice
+        options: [patch, minor, major]
+        default: patch
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  version:
+    if: ${{ !contains(github.event.head_commit.message, '[skip release]') }}
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.next.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Work out next version
+        id: next
+        shell: bash
+        env:
+          INPUT_BUMP: ${{ inputs.bump }}
+          COMMIT_MSG: ${{ github.event.head_commit.message }}
+        run: |
+          latest=$(git tag --list 'v[0-9]*' --sort=-v:refname | head -n1)
+          if [ -z "$latest" ]; then
+            next=$(node -p "require('./package.json').version")
+          else
+            IFS=. read -r major minor patch <<< "${latest#v}"
+            patch=${patch%%-*}
+            bump="${INPUT_BUMP:-patch}"
+            case "$COMMIT_MSG" in
+              *"#major"*) bump=major ;;
+              *"#minor"*) bump=minor ;;
+            esac
+            case "$bump" in
+              major) major=$((major + 1)); minor=0; patch=0 ;;
+              minor) minor=$((minor + 1)); patch=0 ;;
+              *)     patch=$((patch + 1)) ;;
+            esac
+            next="$major.$minor.$patch"
+          fi
+          echo "Latest tag: ${latest:-none} -> v$next"
+          echo "version=$next" >> "$GITHUB_OUTPUT"
+
+  build:
+    needs: version
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-latest
+            target: --mac
+          - os: windows-latest
+            target: --win
+          - os: ubuntu-latest
+            target: --linux
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Stamp version
+        run: npm version ${{ needs.version.outputs.version }} --no-git-tag-version --allow-same-version
+
+      - run: npm run lint
+
+      - run: npm run build
+
+      # VMP signing (castLabs EVS) - needed for Spotify's Widevine licence server to accept the
+      # in-app player. Add EVS_ACCOUNT_NAME / EVS_PASSWD repository secrets to enable it; without
+      # them the build still succeeds and the app falls back to controlling the Spotify app.
+      - uses: actions/setup-python@v5
+        if: ${{ matrix.os != 'ubuntu-latest' }}
+        with:
+          python-version: '3.12'
+
+      - name: Log in to castLabs EVS
+        if: ${{ matrix.os != 'ubuntu-latest' }}
+        shell: bash
+        env:
+          EVS_ACCOUNT_NAME: ${{ secrets.EVS_ACCOUNT_NAME }}
+          EVS_PASSWD: ${{ secrets.EVS_PASSWD }}
+        run: |
+          if [ -z "$EVS_ACCOUNT_NAME" ] || [ -z "$EVS_PASSWD" ]; then
+            echo "::warning::EVS_ACCOUNT_NAME / EVS_PASSWD secrets not set - this build won't be VMP-signed, so in-app playback won't work."
+            exit 0
+          fi
+          python -m pip install --upgrade castlabs-evs
+          python -m castlabs_evs.account --no-ask reauth
+
+      - name: Package
+        run: npx electron-builder ${{ matrix.target }} --publish never
+        env:
+          # Unsigned builds - no Apple/Windows certificates configured.
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+          PYTHON: python
+          EVS_ACCOUNT_NAME: ${{ secrets.EVS_ACCOUNT_NAME }}
+          EVS_PASSWD: ${{ secrets.EVS_PASSWD }}
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-${{ matrix.os }}
+          if-no-files-found: error
+          path: |
+            release/*.dmg
+            release/*.exe
+            release/*.AppImage
+
+  release:
+    needs: [version, build]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+
+      - name: Create tag and GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ needs.version.outputs.version }}
+        run: |
+          ls -la artifacts
+          gh release create "v$VERSION" artifacts/* \
+            --repo "$GITHUB_REPOSITORY" \
+            --target "$GITHUB_SHA" \
+            --title "Spotify Utils v$VERSION" \
+            --generate-notes

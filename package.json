@@ -1,0 +1,105 @@
+{
+  "name": "spotify-utils",
+  "productName": "Spotify Utils",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Explore your Spotify extended streaming history.",
+  "author": "Alex",
+  "type": "module",
+  "main": "dist-electron/main.cjs",
+  "scripts": {
+    "dev": "concurrently -k -n vite,electron -c green,cyan \"vite\" \"npm:dev:electron\"",
+    "dev:electron": "tsc -p electron && wait-on tcp:127.0.0.1:5173 && cross-env VITE_DEV_SERVER_URL=http://127.0.0.1:5173 electron .",
+    "dev:web": "vite",
+    "build": "tsc -b && vite build && tsc -p electron",
+    "start": "electron .",
+    "dist": "npm run build && electron-builder",
+    "lint": "oxlint",
+    "typecheck": "tsc -b && tsc -p electron --noEmit",
+    "vmp:setup": "node scripts/evs.mjs setup",
+    "vmp:signup": "node scripts/evs.mjs signup",
+    "vmp:login": "node scripts/evs.mjs login",
+    "vmp:sign-dev": "node scripts/evs.mjs sign-dev",
+    "vmp:verify-dev": "node scripts/evs.mjs verify-dev"
+  },
+  "dependencies": {
+    "@ant-design/icons": "^6.3.4",
+    "antd": "^6.6.6",
+    "dayjs": "^1.11.23",
+    "fflate": "^0.8.3",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "react-is": "^19.2.8",
+    "recharts": "^3.10.1"
+  },
+  "devDependencies": {
+    "@types/node": "^24.13.3",
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.7",
+    "@vitejs/plugin-react": "^6.1.1",
+    "concurrently": "^10.0.6",
+    "cross-env": "^10.1.0",
+    "electron": "https://github.com/castlabs/electron-releases#v44.5.1+wvcus",
+    "electron-builder": "^26.15.3",
+    "oxlint": "^1.81.0",
+    "typescript": "~6.0.2",
+    "vite": "^8.3.0",
+    "wait-on": "^9.5.1"
+  },
+  "build": {
+    "appId": "io.shopsafe.spotify-utils",
+    "productName": "Spotify Utils",
+    "electronVersion": "44.5.1+wvcus",
+    "electronDownload": {
+      "mirror": "https://github.com/castlabs/electron-releases/releases/download/",
+      "customDir": "v44.5.1+wvcus"
+    },
+    "artifactName": "Spotify-Utils-${version}-${os}-${arch}.${ext}",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**/*",
+      "dist-electron/**/*",
+      "package.json"
+    ],
+    "afterPack": "scripts/vmp-sign.cjs",
+    "mac": {
+      "category": "public.app-category.music",
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "arm64",
+            "x64"
+          ]
+        }
+      ]
+    },
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    },
+    "linux": {
+      "category": "Audio",
+      "target": [
+        {
+          "target": "AppImage",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
+    }
+  }
+}

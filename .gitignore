@@ -1,0 +1,45 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+dist-ssr/
+dist-electron/
+release/
+*.tsbuildinfo
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Env / local overrides
+.env
+.env.*
+!.env.example
+*.local
+
+# Personal data - never commit a Spotify export
+my_spotify_data*.zip
+Streaming_History_*.json
+StreamingHistory*.json
+endsong_*.json
+
+# Editors / OS
+.vscode/*
+!.vscode/extensions.json
+.idea/
+.DS_Store
+Thumbs.db
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# castLabs EVS client venv (npm run vmp:setup)
+.venv-evs/
