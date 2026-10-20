@@ -93,6 +93,14 @@ jobs:
           node-version: 22
           cache: npm
 
+      # The lockfile pins castLabs Electron as a git+ssh dependency; runners have no SSH key, so
+      # fetch GitHub over https instead.
+      - name: Use https for GitHub git dependencies
+        shell: bash
+        run: |
+          git config --global url."https://github.com/".insteadOf "ssh://git@github.com/"
+          git config --global --add url."https://github.com/".insteadOf "git@github.com:"
+
       - run: npm ci
 
       - name: Stamp version
