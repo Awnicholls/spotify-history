@@ -1,3 +1,5 @@
+import type { JSX } from 'react';
+
 import { Button, Card, Flex, Input, Progress, Switch, Table, Tag, Typography } from 'antd';
 
 const sampleRows = [
@@ -6,10 +8,10 @@ const sampleRows = [
 ];
 
 /** A few live controls so theme changes can be judged without leaving Settings. */
-export const ThemePreview = () => (
+export const ThemePreview = (): JSX.Element => (
   <Card size="small" title="Preview" type="inner">
-    <Flex vertical gap={12}>
-      <Flex gap={8} wrap align="center">
+    <Flex gap={12} vertical>
+      <Flex align="center" gap={8} wrap>
         <Button type="primary">Primary</Button>
         <Button>Default</Button>
         <Switch defaultChecked />
@@ -18,14 +20,14 @@ export const ThemePreview = () => (
       <Input placeholder="Search songs…" />
       <Progress percent={64} size="small" />
       <Table
-        size="small"
-        pagination={false}
-        dataSource={sampleRows}
         columns={[
-          { title: 'Song', dataIndex: 'name' },
-          { title: 'Plays', dataIndex: 'plays', align: 'right' },
-          { title: 'Time', dataIndex: 'time', align: 'right' },
+          { dataIndex: 'name', title: 'Song' },
+          { align: 'right', dataIndex: 'plays', title: 'Plays' },
+          { align: 'right', dataIndex: 'time', title: 'Time' },
         ]}
+        dataSource={sampleRows}
+        pagination={false}
+        size="small"
       />
       <Typography.Text type="secondary">Secondary text looks like this.</Typography.Text>
     </Flex>

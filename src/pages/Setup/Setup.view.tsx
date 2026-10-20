@@ -1,34 +1,37 @@
+import type { JSX } from 'react';
+
 import { CustomerServiceFilled } from '@ant-design/icons';
-import { Button, Card, Flex, Form, Input, Typography, theme } from 'antd';
+import { Button, Card, Flex, Form, Input, theme, Typography } from 'antd';
+
 import { SetupSteps } from './components/SetupSteps';
 
 export interface SetupViewProps {
-  value: string;
-  error: string | null;
-  redirectUri: string;
+  error: null | string;
   /** True when a client ID is already saved and the user came here to change it. */
   isChanging: boolean;
+  onCancel?: () => void;
   onChange: (value: string) => void;
   onSubmit: () => void;
-  onCancel?: () => void;
+  redirectUri: string;
+  value: string;
 }
 
 export const SetupView = ({
-  value,
   error,
-  redirectUri,
   isChanging,
+  onCancel,
   onChange,
   onSubmit,
-  onCancel,
-}: SetupViewProps) => {
+  redirectUri,
+  value,
+}: SetupViewProps): JSX.Element => {
   const { token } = theme.useToken();
 
   return (
     <Flex justify="center" style={{ padding: '24px 0' }}>
-      <Flex vertical gap={24} style={{ width: '100%', maxWidth: 600 }}>
-        <Flex vertical align="center" gap={8} style={{ textAlign: 'center' }}>
-          <CustomerServiceFilled style={{ fontSize: 44, color: token.colorPrimary }} />
+      <Flex gap={24} style={{ maxWidth: 600, width: '100%' }} vertical>
+        <Flex align="center" gap={8} style={{ textAlign: 'center' }} vertical>
+          <CustomerServiceFilled style={{ color: token.colorPrimary, fontSize: 44 }} />
           <Typography.Title level={1} style={{ margin: 0 }}>
             Spotify Utils
           </Typography.Title>
@@ -41,30 +44,29 @@ export const SetupView = ({
         <Card>
           <Form layout="vertical" onFinish={onSubmit} requiredMark={false}>
             <Form.Item
+              help={error ?? undefined}
               label="Spotify client ID"
               validateStatus={error ? 'error' : undefined}
-              help={error ?? undefined}
             >
               <Input
-                size="large"
-                value={value}
+                autoComplete="off"
                 onChange={(e) => onChange(e.target.value)}
                 placeholder="e.g. 1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d"
-                autoFocus
+                size="large"
                 spellCheck={false}
-                autoComplete="off"
+                value={value}
               />
             </Form.Item>
 
             <SetupSteps redirectUri={redirectUri} />
 
-            <Flex justify="center" gap={12} style={{ marginTop: 24 }}>
+            <Flex gap={12} justify="center" style={{ marginTop: 24 }}>
               {onCancel && (
-                <Button size="large" shape="round" onClick={onCancel}>
+                <Button onClick={onCancel} shape="round" size="large">
                   Cancel
                 </Button>
               )}
-              <Button type="primary" size="large" shape="round" htmlType="submit">
+              <Button htmlType="submit" shape="round" size="large" type="primary">
                 {isChanging ? 'Save client ID' : 'Save and continue'}
               </Button>
             </Flex>

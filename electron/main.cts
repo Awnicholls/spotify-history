@@ -8,12 +8,13 @@
  * Compiled to CommonJS (`.cts` -> `dist-electron/main.cjs`) because the package is
  * `"type": "module"` and the sandboxed preload has to be CommonJS anyway.
  */
-import * as electron from 'electron';
 import { app, BrowserWindow, ipcMain, nativeTheme, shell } from 'electron';
 import fsSync from 'node:fs';
 import fs from 'node:fs/promises';
 import path from 'node:path';
-import type { ThemeSource } from '../shared/bridge';
+
+import type { ThemeSource, WidevineResult } from '../shared/bridge';
+
 import { startAppServer } from './appServer.cjs';
 import * as spotifyAuth from './spotifyAuth.cjs';
 
@@ -27,46 +28,68 @@ app.commandLine.appendSwitch('autoplay-policy', 'no-user-gesture-required');
 // The dev Electron binary is unsigned and re-signed by `vmp:sign-dev`, so the Keychain treats
 // it as a new app each time and prompts for your login password. Packaged builds use the real
 // Keychain.
-if (!app.isPackaged) app.commandLine.appendSwitch('use-mock-keychain');
+if (!app.isPackaged) {app.commandLine.appendSwitch('use-mock-keychain');}
 
-/** castLabs-only API: Widevine is installed/updated as a component at startup. */
+/** castLabs-only API: Widevine is downloaded/updated as a Chromium component at startup. */
 interface WidevineComponents {
-  whenReady: () => Promise<unknown>;
   status: () => unknown;
+  whenReady: () => Promise<unknown>;
 }
-const components = (electron as unknown as { components?: WidevineComponents }).components;
+// Read straight off the module (not through an import helper) - `components` only exists on
+// castLabs builds.
+const electronModule: { components?: WidevineComponents } = require('electron');
+const { components } = electronModule;
 
-/** Wait (bounded) for Widevine so the player can initialise on first load. */
-const widevineReady = async () => {
-  if (!components) {
-    console.warn('Not running castLabs Electron - Widevine unavailable, in-app playback will not work.');
-    return;
-  }
+const describeStatus = (): string => {
   try {
-    await Promise.race([components.whenReady(), new Promise((r) => setTimeout(r, 20_000))]);
-    console.log('Widevine components:', components.status());
-  } catch (err) {
-    console.error('Widevine component update failed:', err);
+    return JSON.stringify(components?.status() ?? {});
+  } catch {
+    return 'unknown';
   }
 };
 
-let appUrl: string | null = null;
+/**
+ * Widevine readiness, started once at launch. The window opens straight away (with a loading
+ * screen) instead of waiting here - on first launch the CDM download can take a while.
+ */
+let widevine: null | Promise<WidevineResult> = null;
+const waitForWidevine = (): Promise<WidevineResult> =>
+  (widevine ??= (async (): Promise<WidevineResult> => {
+    if (!components) {
+      return { detail: 'This build is not castLabs Electron, so it has no Widevine.', ready: false };
+    }
+    try {
+      await components.whenReady();
+      const detail = describeStatus();
+      console.log('Widevine components ready:', detail);
+      return { detail, ready: true };
+    } catch (err) {
+      const detail = `Widevine install failed (${err instanceof Error ? err.message : String(err)}). Status: ${describeStatus()}`;
+      console.error(detail);
+      return { detail, ready: false };
+    }
+  })());
 
-const dataDir = () => app.getPath('userData');
-const configPath = () => path.join(dataDir(), 'config.json');
-const historyPath = () => path.join(dataDir(), 'history.json');
+/** Renderers can reload once if Widevine finished installing after the page had loaded. */
+const reloadedForWidevine = new Set<number>();
 
-const readText = async (file: string): Promise<string | null> => {
+let appUrl: null | string = null;
+
+const dataDir = (): string => app.getPath('userData');
+const configPath = (): string => path.join(dataDir(), 'config.json');
+const historyPath = (): string => path.join(dataDir(), 'history.json');
+
+const readText = async (file: string): Promise<null | string> => {
   try {
     return await fs.readFile(file, 'utf8');
   } catch (err) {
-    if ((err as NodeJS.ErrnoException).code === 'ENOENT') return null;
+    if (err instanceof Error && 'code' in err && err.code === 'ENOENT') {return null;}
     throw err;
   }
 };
 
 /** Write via a temp file + rename so a crash mid-write never leaves a half-written file. */
-const writeText = async (file: string, text: string) => {
+const writeText = async (file: string, text: string): Promise<void> => {
   await fs.mkdir(path.dirname(file), { recursive: true });
   const tmp = `${file}.tmp`;
   await fs.writeFile(tmp, text, 'utf8');
@@ -76,20 +99,20 @@ const writeText = async (file: string, text: string) => {
 const isThemeSource = (value: unknown): value is ThemeSource =>
   value === 'light' || value === 'dark' || value === 'system';
 
-const registerIpc = () => {
+const registerIpc = (): void => {
   ipcMain.handle('config:load', () => readText(configPath()));
   ipcMain.handle('config:save', (_e, json: unknown) => {
-    if (typeof json !== 'string') throw new Error('config must be a JSON string');
+    if (typeof json !== 'string') {throw new Error('config must be a JSON string');}
     return writeText(configPath(), json);
   });
   ipcMain.handle('history:load', () => readText(historyPath()));
   ipcMain.handle('history:save', (_e, json: unknown) => {
-    if (typeof json !== 'string') throw new Error('history must be a JSON string');
+    if (typeof json !== 'string') {throw new Error('history must be a JSON string');}
     return writeText(historyPath(), json);
   });
   ipcMain.handle('history:clear', () => fs.rm(historyPath(), { force: true }));
   ipcMain.handle('theme:set', (_e, source: unknown) => {
-    if (isThemeSource(source)) nativeTheme.themeSource = source;
+    if (isThemeSource(source)) {nativeTheme.themeSource = source;}
   });
   // Synchronous save for the renderer's beforeunload flush, so nothing is lost on close.
   ipcMain.on('config:save-sync', (e, json: unknown) => {
@@ -103,8 +126,16 @@ const registerIpc = () => {
     }
   });
 
+  ipcMain.handle('widevine:wait', () => waitForWidevine());
+  ipcMain.handle('widevine:reload-once', (e) => {
+    if (reloadedForWidevine.has(e.sender.id)) {return false;}
+    reloadedForWidevine.add(e.sender.id);
+    setTimeout(() => e.sender.reload(), 50);
+    return true;
+  });
+
   ipcMain.handle('spotify:login', (_e, clientId: unknown) => {
-    if (typeof clientId !== 'string' || !clientId) throw new Error('Missing client ID');
+    if (typeof clientId !== 'string' || !clientId) {throw new Error('Missing client ID');}
     return spotifyAuth.login(clientId);
   });
   ipcMain.handle('spotify:cancel-login', () => spotifyAuth.cancelLogin());
@@ -114,35 +145,35 @@ const registerIpc = () => {
   );
 };
 
-const createWindow = async () => {
+const createWindow = async (): Promise<void> => {
   const win = new BrowserWindow({
-    width: 1440,
-    height: 900,
-    minWidth: 1024,
-    minHeight: 600,
-    title: 'Spotify Utils',
-    show: false,
     backgroundColor: nativeTheme.shouldUseDarkColors ? '#141414' : '#ffffff',
+    height: 900,
+    minHeight: 600,
+    minWidth: 1024,
+    show: false,
+    title: 'Spotify Utils',
     webPreferences: {
-      preload: path.join(__dirname, 'preload.cjs'),
       contextIsolation: true,
       nodeIntegration: false,
+      preload: path.join(__dirname, 'preload.cjs'),
       sandbox: true,
     },
+    width: 1440,
   });
 
   win.once('ready-to-show', () => win.show());
 
   // Links (Spotify dashboard, open.spotify.com, ...) open in the user's browser, never in-app.
   win.webContents.setWindowOpenHandler(({ url }) => {
-    if (url.startsWith('https://') || url.startsWith('http://')) void shell.openExternal(url);
+    if (url.startsWith('https://') || url.startsWith('http://')) {void shell.openExternal(url);}
     return { action: 'deny' };
   });
   win.webContents.on('will-navigate', (event, url) => {
     const current = win.webContents.getURL();
     if (url !== current) {
       event.preventDefault();
-      if (url.startsWith('https://')) void shell.openExternal(url);
+      if (url.startsWith('https://')) {void shell.openExternal(url);}
     }
   });
 
@@ -155,16 +186,16 @@ const createWindow = async () => {
   }
 };
 
-app.whenReady().then(async () => {
+void app.whenReady().then(() => {
   registerIpc();
-  await widevineReady();
+  void waitForWidevine();
   void createWindow();
 
   app.on('activate', () => {
-    if (BrowserWindow.getAllWindows().length === 0) void createWindow();
+    if (BrowserWindow.getAllWindows().length === 0) {void createWindow();}
   });
 });
 
 app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') app.quit();
+  if (process.platform !== 'darwin') {app.quit();}
 });

@@ -26,13 +26,13 @@ export const MONTH_NAMES = [
 
 export const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
-export const inRange = (year: number, [from, to]: YearRange) => year >= from && year <= to;
+export const inRange = (year: number, [from, to]: YearRange): boolean => year >= from && year <= to;
 
 // ---------------------------------------------------------------------------------------------
 // Month / day heatmap
 
 /** Index into a 12 x 31 grid. */
-const mdIndex = (month: number, day: number) => month * 31 + (day - 1);
+const mdIndex = (month: number, day: number): number => month * 31 + (day - 1);
 
 export interface DayBuckets {
   /** year -> ms listened per month/day cell (12 * 31). */
@@ -63,31 +63,32 @@ export const buildDayBuckets = (plays: Play[]): DayBuckets => {
 };
 
 export interface DayCell {
-  month: number;
   day: number;
+  month: number;
   ms: number;
   streams: number;
 }
 
 export interface MonthGrid {
-  month: number;
   /** Days 1..N (N = longest month length across the selected years). */
   days: DayCell[];
-  ms: number;
-  streams: number;
   /** Weekday (0 = Monday) of the 1st - only meaningful when a single year is selected. */
   firstWeekday: number;
+  month: number;
+  ms: number;
+  streams: number;
 }
 
-const daysIn = (year: number, month: number) => new Date(year, month + 1, 0).getDate();
+const daysIn = (year: number, month: number): number => new Date(year, month + 1, 0).getDate();
 
 /** Sum the selected years into 12 month grids. */
-export const monthGrids = (buckets: DayBuckets, range: YearRange): { months: MonthGrid[]; maxMs: number; maxStreams: number } => {
+export const monthGrids = (buckets: DayBuckets, range: YearRange): { maxMs: number; maxStreams: number; months: MonthGrid[]; } => {
   const ms = new Float64Array(12 * 31);
   const streams = new Uint32Array(12 * 31);
   for (const [year, arr] of buckets.ms) {
-    if (!inRange(year, range)) continue;
-    const s = buckets.streams.get(year)!;
+    if (!inRange(year, range)) {continue;}
+    const s = buckets.streams.get(year);
+    if (!s) {continue;}
     for (let i = 0; i < arr.length; i++) {
       ms[i] += arr[i];
       streams[i] += s[i];
@@ -100,26 +101,26 @@ export const monthGrids = (buckets: DayBuckets, range: YearRange): { months: Mon
   const months: MonthGrid[] = Array.from({ length: 12 }, (_, month) => {
     // Feb shows the 29th only if a selected year is a leap year.
     let length = 28;
-    for (let y = range[0]; y <= range[1]; y++) length = Math.max(length, daysIn(y, month));
+    for (let y = range[0]; y <= range[1]; y++) {length = Math.max(length, daysIn(y, month));}
     const days: DayCell[] = [];
     let monthMs = 0;
     let monthStreams = 0;
     for (let day = 1; day <= length; day++) {
       const i = mdIndex(month, day);
-      days.push({ month, day, ms: ms[i], streams: streams[i] });
+      days.push({ day, month, ms: ms[i], streams: streams[i] });
       monthMs += ms[i];
       monthStreams += streams[i];
-      if (ms[i] > maxMs) maxMs = ms[i];
-      if (streams[i] > maxStreams) maxStreams = streams[i];
+      if (ms[i] > maxMs) {maxMs = ms[i];}
+      if (streams[i] > maxStreams) {maxStreams = streams[i];}
     }
     const firstWeekday = single ? (new Date(range[0], month, 1).getDay() + 6) % 7 : 0;
-    return { month, days, ms: monthMs, streams: monthStreams, firstWeekday };
+    return { days, firstWeekday, month, ms: monthMs, streams: monthStreams };
   });
-  return { months, maxMs, maxStreams };
+  return { maxMs, maxStreams, months };
 };
 
 /** Plays on a month/day (or a whole month when `day` is null) in the selected years. */
-export const playsOnDate = (plays: Play[], month: number, day: number | null, range: YearRange): Play[] =>
+export const playsOnDate = (plays: Play[], month: number, day: null | number, range: YearRange): Play[] =>
   plays.filter((p) => {
     const d = new Date(p.ts);
     return d.getMonth() === month && (day === null || d.getDate() === day) && inRange(d.getFullYear(), range);
@@ -137,7 +138,7 @@ export const buildHourBuckets = (plays: Play[]): HourBuckets => {
     const d = new Date(p.ts);
     const year = d.getFullYear();
     let arr = out.get(year);
-    if (!arr) out.set(year, (arr = new Float64Array(7 * 24)));
+    if (!arr) {out.set(year, (arr = new Float64Array(7 * 24)));}
     arr[((d.getDay() + 6) % 7) * 24 + d.getHours()] += p.ms;
   }
   return out;
@@ -146,8 +147,8 @@ export const buildHourBuckets = (plays: Play[]): HourBuckets => {
 export const hourGrid = (buckets: HourBuckets, range: YearRange): { cells: number[][]; max: number } => {
   const sum = new Float64Array(7 * 24);
   for (const [year, arr] of buckets) {
-    if (!inRange(year, range)) continue;
-    for (let i = 0; i < arr.length; i++) sum[i] += arr[i];
+    if (!inRange(year, range)) {continue;}
+    for (let i = 0; i < arr.length; i++) {sum[i] += arr[i];}
   }
   const cells = Array.from({ length: 7 }, (_, wd) => Array.from(sum.subarray(wd * 24, wd * 24 + 24)));
   return { cells, max: Math.max(0, ...sum) };
@@ -168,23 +169,23 @@ export interface MonthTopArtist {
 }
 
 export interface MonthTop {
+  hours: number;
   /** 'YYYY-MM' */
   month: string;
-  hours: number;
   /** That month's own top 10 artists by time listened. */
   top: MonthTopArtist[];
 }
 
 export interface ArtistTrend {
-  /** Chart series: the most-listened artists over the period (plus Everyone else if asked). */
-  series: string[];
-  /** One row per month: { month: 'YYYY-MM', [artist]: hours }. */
-  rows: Record<string, number | string>[];
   /** Every month's own top 10, oldest first. */
   months: MonthTop[];
+  /** One row per month: { month: 'YYYY-MM', [artist]: hours }. */
+  rows: Record<string, number | string>[];
+  /** Chart series: the most-listened artists over the period (plus Everyone else if asked). */
+  series: string[];
 }
 
-const monthKey = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+const monthKey = (d: Date): string => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
 
 /**
  * Month-by-month listening per artist (tracks only). The chart plots the `seriesCount` biggest
@@ -202,23 +203,23 @@ export const artistTrend = (plays: Play[], seriesCount: number, includeOthers: b
   let last: Date | null = null;
 
   for (const p of plays) {
-    if (p.kind !== 'track' || p.ms <= 0) continue;
+    if (p.kind !== 'track' || p.ms <= 0) {continue;}
     const d = new Date(p.ts);
-    if (!first || d < first) first = d;
-    if (!last || d > last) last = d;
+    if (!first || d < first) {first = d;}
+    if (!last || d > last) {last = d;}
     const key = monthKey(d);
     let month = perMonth.get(key);
-    if (!month) perMonth.set(key, (month = new Map()));
+    if (!month) {perMonth.set(key, (month = new Map()));}
     let acc = month.get(p.artist);
-    if (!acc) month.set(p.artist, (acc = { ms: 0, streams: 0, uris: new Map() }));
+    if (!acc) {month.set(p.artist, (acc = { ms: 0, streams: 0, uris: new Map() }));}
     acc.ms += p.ms;
     acc.streams++;
-    if (p.uri) acc.uris.set(p.uri, (acc.uris.get(p.uri) ?? 0) + 1);
+    if (p.uri) {acc.uris.set(p.uri, (acc.uris.get(p.uri) ?? 0) + 1);}
     totals.set(p.artist, (totals.get(p.artist) ?? 0) + p.ms);
   }
 
   const top = [...totals.entries()]
-    .sort((a, b) => b[1] - a[1])
+    .toSorted((a, b) => b[1] - a[1])
     .slice(0, seriesCount)
     .map(([a]) => a);
   const topSet = new Set(top);
@@ -228,39 +229,39 @@ export const artistTrend = (plays: Play[], seriesCount: number, includeOthers: b
   const months: MonthTop[] = [];
   if (first && last) {
     // Every month in between, so quiet months show as dips rather than being skipped.
-    const cursor = new Date(first.getFullYear(), first.getMonth(), 1);
-    const end = new Date(last.getFullYear(), last.getMonth(), 1);
-    while (cursor <= end) {
-      const key = monthKey(cursor);
+    const monthCount = (last.getFullYear() - first.getFullYear()) * 12 + last.getMonth() - first.getMonth() + 1;
+    for (let i = 0; i < monthCount; i++) {
+      const key = monthKey(new Date(first.getFullYear(), first.getMonth() + i, 1));
       const artists = perMonth.get(key) ?? new Map<string, Acc>();
       const row: Record<string, number | string> = { month: key };
-      for (const s of series) row[s] = 0;
+      for (const s of series) {row[s] = 0;}
       let monthMs = 0;
+      let othersMs = 0;
       for (const [artist, acc] of artists) {
         monthMs += acc.ms;
-        if (topSet.has(artist)) row[artist] = acc.ms / 3_600_000;
-        else if (includeOthers) row[OTHER_ARTISTS] = (row[OTHER_ARTISTS] as number) + acc.ms / 3_600_000;
+        if (topSet.has(artist)) {row[artist] = acc.ms / 3_600_000;}
+        else {othersMs += acc.ms;}
       }
+      if (includeOthers) {row[OTHER_ARTISTS] = othersMs / 3_600_000;}
       rows.push(row);
       months.push({
-        month: key,
         hours: monthMs / 3_600_000,
+        month: key,
         top: [...artists.entries()]
-          .sort((a, b) => b[1].ms - a[1].ms)
+          .toSorted((a, b) => b[1].ms - a[1].ms)
           .slice(0, MONTHLY_TOP)
           .map(([artist, acc]) => ({
             artist,
             hours: acc.ms / 3_600_000,
             streams: acc.streams,
             uris: [...acc.uris.entries()]
-              .sort((a, b) => b[1] - a[1])
+              .toSorted((a, b) => b[1] - a[1])
               .slice(0, 50)
               .map(([u]) => u),
           })),
       });
-      cursor.setMonth(cursor.getMonth() + 1);
     }
   }
 
-  return { series, rows, months };
+  return { months, rows, series };
 };

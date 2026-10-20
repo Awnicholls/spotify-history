@@ -1,4 +1,7 @@
+import type { JSX } from 'react';
+
 import type { StoredHistory } from '../../types/history';
+
 import { StatsView } from './Stats.view';
 import { useStats } from './useStats';
 
@@ -7,6 +10,6 @@ import { useStats } from './useStats';
  * numbers, and a tab per category (songs, artists, albums, podcasts, ...) with a searchable,
  * sortable, filterable table. Graphs will slot in here later.
  */
-export const StatsContainer = ({ history }: { history: StoredHistory }) => (
+export const StatsContainer = ({ history }: { history: StoredHistory }): JSX.Element => (
   <StatsView {...useStats({ history })} />
 );

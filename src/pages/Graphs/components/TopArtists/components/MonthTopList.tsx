@@ -1,18 +1,20 @@
 import { CaretRightFilled } from '@ant-design/icons';
-import { Typography, theme } from 'antd';
+import { theme, Typography } from 'antd';
 import dayjs from 'dayjs';
 import { memo } from 'react';
+
 import type { MonthTop } from '../../../../../lib/graphs';
+
 import { seriesColor } from '../artistColors';
 
 interface MonthTopListProps {
   months: MonthTop[];
-  series: string[];
   onPlay: (month: string, artist: string) => void;
+  series: string[];
 }
 
 /** Every month's top 10 artists, newest first. Click an artist to play their songs from that month. */
-export const MonthTopList = memo(({ months, series, onPlay }: MonthTopListProps) => {
+export const MonthTopList = memo(({ months, onPlay, series }: MonthTopListProps) => {
   const { token } = theme.useToken();
 
   return (
@@ -25,47 +27,47 @@ export const MonthTopList = memo(({ months, series, onPlay }: MonthTopListProps)
           <div
             key={m.month}
             style={{
-              display: 'grid',
-              gridTemplateColumns: '110px 1fr',
-              gap: 12,
-              padding: '8px 0',
               borderBottom: `1px solid ${token.colorBorderSecondary}`,
+              display: 'grid',
+              gap: 12,
+              gridTemplateColumns: '110px 1fr',
+              padding: '8px 0',
             }}
           >
             <div>
               <Typography.Text strong>{dayjs(`${m.month}-01`).format('MMM YYYY')}</Typography.Text>
               <br />
-              <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+              <Typography.Text style={{ fontSize: 12 }} type="secondary">
                 {m.hours.toFixed(1)}h
               </Typography.Text>
             </div>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, alignContent: 'flex-start' }}>
+            <div style={{ alignContent: 'flex-start', display: 'flex', flexWrap: 'wrap', gap: 6 }}>
               {m.top.map((a, i) => {
                 const color = seriesColor(series, a.artist);
                 return (
                   <button
                     key={a.artist}
-                    type="button"
-                    title={`Play ${a.artist}'s most-played songs from this month · ${a.hours.toFixed(1)}h, ${a.streams} streams`}
                     onClick={() => onPlay(m.month, a.artist)}
                     style={{
-                      display: 'inline-flex',
                       alignItems: 'center',
-                      gap: 6,
-                      cursor: 'pointer',
+                      background: token.colorFillQuaternary,
                       border: `1px solid ${color ?? token.colorBorder}`,
                       borderRadius: 999,
-                      padding: '2px 10px 2px 8px',
-                      background: token.colorFillQuaternary,
                       color: token.colorText,
+                      cursor: 'pointer',
+                      display: 'inline-flex',
                       fontSize: 12,
+                      gap: 6,
                       lineHeight: '18px',
+                      padding: '2px 10px 2px 8px',
                     }}
+                    title={`Play ${a.artist}'s most-played songs from this month · ${a.hours.toFixed(1)}h, ${a.streams} streams`}
+                    type="button"
                   >
                     <span style={{ color: token.colorTextSecondary }}>{i + 1}</span>
                     {a.artist}
                     <span style={{ color: token.colorTextSecondary }}>{a.hours.toFixed(1)}h</span>
-                    <CaretRightFilled style={{ fontSize: 10, color: token.colorTextTertiary }} />
+                    <CaretRightFilled style={{ color: token.colorTextTertiary, fontSize: 10 }} />
                   </button>
                 );
               })}

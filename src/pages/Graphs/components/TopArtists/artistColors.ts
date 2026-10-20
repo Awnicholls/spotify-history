@@ -1,5 +1,7 @@
 import { OTHER_ARTISTS } from '../../../../lib/graphs';
 
+export const OTHERS_COLOR = '#8C8C8C';
+
 const PALETTE = [
   '#1DB954',
   '#1677FF',
@@ -24,8 +26,8 @@ const PALETTE = [
 ];
 
 /** Fixed colour per charted artist (by rank), grey for everyone else, null if not charted. */
-export const seriesColor = (series: string[], artist: string): string | null => {
-  if (artist === OTHER_ARTISTS) return '#8C8C8C';
+export const seriesColor = (series: string[], artist: string): null | string => {
+  if (artist === OTHER_ARTISTS) {return OTHERS_COLOR;}
   const i = series.indexOf(artist);
   return i < 0 ? null : PALETTE[i % PALETTE.length];
 };

@@ -1,56 +1,60 @@
-import { Flex, Segmented, Typography, theme } from 'antd';
+import type { JSX } from 'react';
+
+import { Flex, Segmented, theme, Typography } from 'antd';
+
 import type { StatRow } from '../../../../lib/aggregate';
 import type { MonthGrid } from '../../../../lib/graphs';
-import { DayDetailDrawer } from './components/DayDetailDrawer';
+
 import { HeatLegend } from '../HeatLegend';
+import { DayDetailDrawer } from './components/DayDetailDrawer';
 import { MonthCard } from './components/MonthCard';
 
-export type HeatMetric = 'time' | 'streams';
+export type HeatMetric = 'streams' | 'time';
 
 export interface MonthHeatmapViewProps {
-  months: MonthGrid[];
-  max: number;
-  metric: HeatMetric;
-  onMetricChange: (metric: HeatMetric) => void;
-  /** Lay days out by weekday (only meaningful for one year). */
-  singleYear: boolean;
-  rangeLabel: string;
-  onSelectDay: (month: number, day: number) => void;
-  onSelectMonth: (month: number) => void;
   detail: {
-    title: string;
-    streams: number;
     ms: number;
     songs: StatRow[];
+    streams: number;
+    title: string;
     yearsWithPlays: number;
   } | null;
+  max: number;
+  metric: HeatMetric;
+  months: MonthGrid[];
   onCloseDetail: () => void;
+  onMetricChange: (metric: HeatMetric) => void;
+  onSelectDay: (month: number, day: number) => void;
+  onSelectMonth: (month: number) => void;
+  rangeLabel: string;
+  /** Lay days out by weekday (only meaningful for one year). */
+  singleYear: boolean;
 }
 
 export const MonthHeatmapView = ({
-  months,
+  detail,
   max,
   metric,
+  months,
+  onCloseDetail,
   onMetricChange,
-  singleYear,
-  rangeLabel,
   onSelectDay,
   onSelectMonth,
-  detail,
-  onCloseDetail,
-}: MonthHeatmapViewProps) => {
+  rangeLabel,
+  singleYear,
+}: MonthHeatmapViewProps): JSX.Element => {
   const { token } = theme.useToken();
 
   return (
-    <Flex vertical gap={16}>
-      <Flex wrap gap={12} align="center">
+    <Flex gap={16} vertical>
+      <Flex align="center" gap={12} wrap>
         <Segmented<HeatMetric>
-          value={metric}
           onChange={onMetricChange}
           options={[
             { label: 'Time listened', value: 'time' },
             { label: 'Streams', value: 'streams' },
           ]}
+          value={metric}
         />
         <Typography.Text type="secondary">
           {singleYear
@@ -62,18 +66,18 @@ export const MonthHeatmapView = ({
         </span>
       </Flex>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(230px, 1fr))', gap: 16 }}>
+      <div style={{ display: 'grid', gap: 16, gridTemplateColumns: 'repeat(auto-fill, minmax(230px, 1fr))' }}>
         {months.map((m) => (
           <MonthCard
-            key={m.month}
-            grid={m}
-            max={max}
-            metric={metric}
-            weekdayAligned={singleYear}
             accent={token.colorPrimary}
             empty={token.colorFillTertiary}
+            grid={m}
+            key={m.month}
+            max={max}
+            metric={metric}
             onSelectDay={onSelectDay}
             onSelectMonth={onSelectMonth}
+            weekdayAligned={singleYear}
           />
         ))}
       </div>

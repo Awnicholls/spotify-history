@@ -21,12 +21,12 @@ const systemPython = process.platform === 'win32' ? 'python' : 'python3';
 const electronDist = path.join(root, 'node_modules', 'electron', 'dist');
 
 const run = (cmd, args) => {
-  const result = spawnSync(cmd, args, { stdio: 'inherit', cwd: root });
+  const result = spawnSync(cmd, args, { cwd: root, stdio: 'inherit' });
   if (result.error) {
     console.error(`Could not run ${cmd}: ${result.error.message}`);
     process.exit(1);
   }
-  if (result.status !== 0) process.exit(result.status ?? 1);
+  if (result.status !== 0) {process.exit(result.status ?? 1);}
 };
 
 const setup = () => {
@@ -39,15 +39,15 @@ const setup = () => {
 };
 
 const evs = (...args) => {
-  if (!existsSync(venvPython)) setup();
+  if (!existsSync(venvPython)) {setup();}
   run(venvPython, ['-m', ...args]);
 };
 
 const commands = {
-  setup,
-  signup: () => evs('castlabs_evs.account', 'signup'),
   login: () => evs('castlabs_evs.account', 'reauth'),
+  setup,
   'sign-dev': () => evs('castlabs_evs.vmp', 'sign-pkg', electronDist),
+  signup: () => evs('castlabs_evs.account', 'signup'),
   'verify-dev': () => evs('castlabs_evs.vmp', 'verify-pkg', electronDist),
 };
 

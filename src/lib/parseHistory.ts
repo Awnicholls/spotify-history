@@ -1,4 +1,5 @@
 import { strFromU8, unzipSync } from 'fflate';
+
 import type { Play, PlayKind, RawStreamRecord } from '../types/history';
 
 /**
@@ -11,38 +12,40 @@ import type { Play, PlayKind, RawStreamRecord } from '../types/history';
  */
 
 export interface ImportResult {
-  plays: Play[];
+  /** Identical rows seen more than once, e.g. the same file dropped twice. */
+  duplicates: number;
   files: string[];
   /** Rows with no track/episode/chapter metadata (local files, corrupt rows, ...). */
   ignored: number;
-  /** Identical rows seen more than once, e.g. the same file dropped twice. */
-  duplicates: number;
+  plays: Play[];
 }
 
 const EXTENDED_FILE = /(^|\/)(Streaming_History_(Audio|Video)_[^/]*|endsong_\d+)\.json$/i;
 const BASIC_FILE = /(^|\/)StreamingHistory[^/]*\.json$/i;
 
-const baseName = (path: string) => path.split('/').pop() ?? path;
+const baseName = (path: string): string => path.split('/').pop() ?? path;
 
 /** Collapse Spotify's very specific platform strings into a device family. */
-export const normalizePlatform = (raw: string | null | undefined): string => {
+export const normalizePlatform = (raw: null | string | undefined): string => {
   const p = (raw ?? '').trim().toLowerCase();
-  if (!p || p === 'unknown') return 'Unknown';
-  if (p.includes('xbox')) return 'Xbox';
-  if (p.includes('playstation') || p.includes('ps4') || p.includes('ps5')) return 'PlayStation';
-  if (p.includes('web_player') || p.includes('webplayer')) return 'Web player';
-  if (p.includes('android')) return 'Android';
-  if (p.startsWith('ios') || p.includes('iphone') || p.includes('ipad')) return 'iOS';
-  if (p.includes('windows')) return 'Windows';
-  if (p.includes('os x') || p.includes('osx') || p.includes('macos') || p.includes('mac os')) return 'macOS';
-  if (p.includes('linux')) return 'Linux';
-  if (p.includes('cast')) return 'Chromecast';
-  if (p.includes('sonos')) return 'Sonos';
-  if (p.includes('tv')) return 'TV';
-  return raw?.trim() || 'Unknown';
+  if (!p || p === 'unknown') {return 'Unknown';}
+  if (p.includes('xbox')) {return 'Xbox';}
+  if (p.includes('playstation') || p.includes('ps4') || p.includes('ps5')) {return 'PlayStation';}
+  if (p.includes('web_player') || p.includes('webplayer')) {return 'Web player';}
+  if (p.includes('android')) {return 'Android';}
+  if (p.startsWith('ios') || p.includes('iphone') || p.includes('ipad')) {return 'iOS';}
+  if (p.includes('windows')) {return 'Windows';}
+  if (p.includes('os x') || p.includes('osx') || p.includes('macos') || p.includes('mac os')) {return 'macOS';}
+  if (p.includes('linux')) {return 'Linux';}
+  if (p.includes('cast')) {return 'Chromecast';}
+  if (p.includes('sonos')) {return 'Sonos';}
+  if (p.includes('tv')) {return 'TV';}
+  const trimmed = raw?.trim();
+  if (!trimmed) {return 'Unknown';}
+  return trimmed;
 };
 
-const titleCase = (s: string) => (s ? s[0].toUpperCase() + s.slice(1) : s);
+const titleCase = (s: string): string => (s ? s[0].toUpperCase() + s.slice(1) : s);
 
 /**
  * The specific device inside a family, from Spotify's raw platform string. Examples:
@@ -52,7 +55,7 @@ const titleCase = (s: string) => (s ? s[0].toUpperCase() + s.slice(1) : s);
  * - `Windows 10 (10.0.19043; x64)` -> `Windows 10`
  * Bare strings like `android` or `windows` (what newer exports use) map to "<family> (unspecified)".
  */
-export const deviceName = (raw: string | null | undefined, family: string): string => {
+export const deviceName = (raw: null | string | undefined, family: string): string => {
   const r = (raw ?? '').trim();
   const p = r.toLowerCase();
   const unspecified = `${family} (unspecified)`;
@@ -60,7 +63,7 @@ export const deviceName = (raw: string | null | undefined, family: string): stri
   switch (family) {
     case 'Xbox': {
       const token = p.match(/xbox[a-z0-9_]*/)?.[0] ?? 'xbox';
-      if (token === 'xbox') return unspecified;
+      if (token === 'xbox') {return unspecified;}
       return token
         .split('_')
         .map((w) => (w.length <= 1 ? w.toUpperCase() : titleCase(w)))
@@ -68,7 +71,7 @@ export const deviceName = (raw: string | null | undefined, family: string): stri
     }
     case 'Android': {
       const m = r.match(/\(([^,()]+),\s*(.+)\)\s*$/);
-      if (!m) return unspecified;
+      if (!m) {return unspecified;}
       const brand = m[1].trim();
       const model = m[2].trim().replace(new RegExp(`^${brand.replace(/[^a-z0-9]/gi, '.')}[-_ ]`, 'i'), '');
       return `${titleCase(brand)} ${model}${p.includes('tablet') ? ' (tablet)' : ''}`;
@@ -94,14 +97,16 @@ export const deviceName = (raw: string | null | undefined, family: string): stri
   }
 };
 
-const isRecord =(value: unknown): value is RawStreamRecord =>
+const isRecord = (value: unknown): value is RawStreamRecord =>
   typeof value === 'object' &&
   value !== null &&
-  typeof (value as RawStreamRecord).ts === 'string' &&
-  typeof (value as RawStreamRecord).ms_played === 'number';
+  'ts' in value &&
+  typeof value.ts === 'string' &&
+  'ms_played' in value &&
+  typeof value.ms_played === 'number';
 
 /** Map one raw row to a Play, or null when it has nothing to attribute the stream to. */
-export const toPlay = (r: RawStreamRecord): Play | null => {
+export const toPlay = (r: RawStreamRecord): null | Play => {
   let kind: PlayKind;
   let title: string;
   let artist: string;
@@ -129,28 +134,28 @@ export const toPlay = (r: RawStreamRecord): Play | null => {
   }
 
   const ts = Date.parse(r.ts);
-  if (Number.isNaN(ts)) return null;
+  if (Number.isNaN(ts)) {return null;}
 
   const reasonEnd = r.reason_end ?? 'unknown';
   const platform = normalizePlatform(r.platform);
   return {
-    ts,
-    ms: Math.max(0, r.ms_played),
-    kind,
-    title,
-    artist,
     album,
-    uri,
-    platform,
-    device: deviceName(r.platform, platform),
+    artist,
     country: r.conn_country ?? '',
-    reasonStart: r.reason_start ?? 'unknown',
+    device: deviceName(r.platform, platform),
+    incognito: r.incognito_mode === true,
+    kind,
+    ms: Math.max(0, r.ms_played),
+    offline: r.offline === true,
+    platform,
     reasonEnd,
+    reasonStart: r.reason_start ?? 'unknown',
     shuffle: r.shuffle === true,
     // Older exports leave `skipped` null; pressing "next" is the best stand-in there.
     skipped: r.skipped ?? reasonEnd === 'fwdbtn',
-    offline: r.offline === true,
-    incognito: r.incognito_mode === true,
+    title,
+    ts,
+    uri,
   };
 };
 
@@ -159,13 +164,13 @@ interface JsonSource {
   text: string;
 }
 
-const readZip = async (file: File): Promise<{ sources: JsonSource[]; sawBasic: boolean }> => {
+const readZip = async (file: File): Promise<{ sawBasic: boolean; sources: JsonSource[]; }> => {
   const data = new Uint8Array(await file.arrayBuffer());
   let sawBasic = false;
   const entries = unzipSync(data, {
     filter: ({ name }) => {
-      if (name.startsWith('__MACOSX/')) return false;
-      if (BASIC_FILE.test(name)) sawBasic = true;
+      if (name.startsWith('__MACOSX/')) {return false;}
+      if (BASIC_FILE.test(name)) {sawBasic = true;}
       return EXTENDED_FILE.test(name);
     },
   });
@@ -173,29 +178,28 @@ const readZip = async (file: File): Promise<{ sources: JsonSource[]; sawBasic: b
     name: baseName(name),
     text: strFromU8(bytes),
   }));
-  return { sources, sawBasic };
+  return { sawBasic, sources };
 };
 
 /** Let the UI paint a spinner before a long synchronous chunk of work. */
-const nextFrame = () => new Promise<void>((resolve) => setTimeout(resolve, 0));
+const nextFrame = (): Promise<void> => new Promise<void>((resolve) => setTimeout(resolve, 0));
 
 export const parseHistoryFiles = async (files: File[]): Promise<ImportResult> => {
   await nextFrame();
 
-  const sources: JsonSource[] = [];
-  let sawBasic = false;
-
-  for (const file of files) {
-    const lower = file.name.toLowerCase();
-    if (lower.endsWith('.zip')) {
-      const zip = await readZip(file);
-      sources.push(...zip.sources);
-      sawBasic ||= zip.sawBasic;
-    } else if (lower.endsWith('.json')) {
-      if (EXTENDED_FILE.test(file.name)) sources.push({ name: file.name, text: await file.text() });
-      else if (BASIC_FILE.test(file.name)) sawBasic = true;
-    }
-  }
+  // Read every dropped file (zips and loose JSON) in parallel.
+  const read = await Promise.all(
+    files.map(async (file): Promise<{ sawBasic: boolean; sources: JsonSource[] }> => {
+      const lower = file.name.toLowerCase();
+      if (lower.endsWith('.zip')) {return readZip(file);}
+      if (lower.endsWith('.json') && EXTENDED_FILE.test(file.name)) {
+        return { sawBasic: false, sources: [{ name: file.name, text: await file.text() }] };
+      }
+      return { sawBasic: lower.endsWith('.json') && BASIC_FILE.test(file.name), sources: [] };
+    }),
+  );
+  const sources = read.flatMap((r) => r.sources);
+  const sawBasic = read.some((r) => r.sawBasic);
 
   if (sources.length === 0) {
     throw new Error(
@@ -217,7 +221,7 @@ export const parseHistoryFiles = async (files: File[]): Promise<ImportResult> =>
     } catch {
       throw new Error(`${source.name} is not valid JSON.`);
     }
-    if (!Array.isArray(rows)) throw new Error(`${source.name} is not a streaming history file.`);
+    if (!Array.isArray(rows)) {throw new Error(`${source.name} is not a streaming history file.`);}
 
     for (const row of rows) {
       if (!isRecord(row)) {
@@ -242,9 +246,9 @@ export const parseHistoryFiles = async (files: File[]): Promise<ImportResult> =>
   plays.sort((a, b) => a.ts - b.ts);
 
   return {
-    plays,
-    files: [...new Set(sources.map((s) => s.name))].sort(),
-    ignored,
     duplicates,
+    files: [...new Set(sources.map((s) => s.name))].toSorted(),
+    ignored,
+    plays,
   };
 };

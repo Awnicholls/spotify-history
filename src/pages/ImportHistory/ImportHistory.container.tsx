@@ -1,4 +1,7 @@
+import type { JSX } from 'react';
+
 import type { StoredHistory } from '../../types/history';
+
 import { ImportHistoryView } from './ImportHistory.view';
 import { useImportHistory } from './useImportHistory';
 
@@ -7,7 +10,7 @@ import { useImportHistory } from './useImportHistory';
  * normalised, then saved so the stats survive restarts.
  */
 export const ImportHistoryContainer = (props: {
-  history: StoredHistory | null;
-  onImported: (history: StoredHistory) => Promise<void>;
+  history: null | StoredHistory;
   onCancel?: () => void;
-}) => <ImportHistoryView {...useImportHistory(props)} />;
+  onImported: (history: StoredHistory) => Promise<void>;
+}): JSX.Element => <ImportHistoryView {...useImportHistory(props)} />;

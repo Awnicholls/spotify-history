@@ -1,3 +1,4 @@
+
 /**
  * Serves the built renderer (`dist/`) on a loopback http origin in production.
  *
@@ -8,33 +9,33 @@
  */
 import fs from 'node:fs/promises';
 import http from 'node:http';
-import type { AddressInfo } from 'node:net';
 import path from 'node:path';
 
 const PREFERRED_PORT = 4004;
 
 const MIME: Record<string, string> = {
-  '.html': 'text/html; charset=utf-8',
-  '.js': 'text/javascript; charset=utf-8',
-  '.mjs': 'text/javascript; charset=utf-8',
   '.css': 'text/css; charset=utf-8',
-  '.json': 'application/json; charset=utf-8',
-  '.svg': 'image/svg+xml',
-  '.png': 'image/png',
-  '.jpg': 'image/jpeg',
+  '.html': 'text/html; charset=utf-8',
   '.ico': 'image/x-icon',
+  '.jpg': 'image/jpeg',
+  '.js': 'text/javascript; charset=utf-8',
+  '.json': 'application/json; charset=utf-8',
+  '.map': 'application/json; charset=utf-8',
+  '.mjs': 'text/javascript; charset=utf-8',
+  '.png': 'image/png',
+  '.svg': 'image/svg+xml',
   '.woff': 'font/woff',
   '.woff2': 'font/woff2',
-  '.map': 'application/json; charset=utf-8',
 };
 
-const listen = (server: http.Server, port: number) =>
+const listen = (server: http.Server, port: number): Promise<number> =>
   new Promise<number>((resolve, reject) => {
-    const onError = (err: Error) => reject(err);
+    const onError = (err: Error): void => reject(err);
     server.once('error', onError);
     server.listen(port, '127.0.0.1', () => {
       server.off('error', onError);
-      resolve((server.address() as AddressInfo).port);
+      const address = server.address();
+      resolve(typeof address === 'object' && address !== null ? address.port : port);
     });
   });
 
@@ -59,8 +60,8 @@ export const startAppServer = async (root: string): Promise<string> => {
         body = await fs.readFile(file);
       }
       res.writeHead(200, {
-        'Content-Type': MIME[path.extname(file).toLowerCase()] ?? 'application/octet-stream',
         'Cache-Control': 'no-cache',
+        'Content-Type': MIME[path.extname(file).toLowerCase()] ?? 'application/octet-stream',
       });
       res.end(body);
     } catch {

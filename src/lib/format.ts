@@ -6,7 +6,7 @@ const DAY = 24 * HOUR;
 
 export const formatNumber = (n: number): string => n.toLocaleString();
 
-const pad2 = (n: number) => String(n).padStart(2, '0');
+const pad2 = (n: number): string => String(n).padStart(2, '0');
 
 /** Exact hours and minutes, however large: "1,563h 58m". Used as the hover detail for days. */
 export const formatHours = (ms: number): string => {
@@ -17,9 +17,9 @@ export const formatHours = (ms: number): string => {
 
 /** Scales the unit to the size: 42s · 3m 20s · 12h 05m · 65d 03h · 1,204d 07h */
 export const formatDuration = (ms: number): string => {
-  if (ms < MINUTE) return `${Math.round(ms / 1000)}s`;
-  if (ms < HOUR) return `${Math.floor(ms / MINUTE)}m ${pad2(Math.round((ms % MINUTE) / 1000))}s`;
-  if (ms < DAY) return formatHours(ms);
+  if (ms < MINUTE) {return `${Math.round(ms / 1000)}s`;}
+  if (ms < HOUR) {return `${Math.floor(ms / MINUTE)}m ${pad2(Math.round((ms % MINUTE) / 1000))}s`;}
+  if (ms < DAY) {return formatHours(ms);}
   const d = Math.floor(ms / DAY);
   const h = Math.floor((ms % DAY) / HOUR);
   return `${d.toLocaleString()}d ${pad2(h)}h`;
@@ -45,7 +45,7 @@ export const formatDateTime = (ts: number): string => (ts ? dayjs(ts).format('D 
 export const formatPercent = (ratio: number): string => `${(ratio * 100).toFixed(1)}%`;
 
 /** spotify:track:abc -> https://open.spotify.com/track/abc */
-export const spotifyUrl = (uri: string): string | null => {
+export const spotifyUrl = (uri: string): null | string => {
   const [scheme, type, id] = uri.split(':');
   return scheme === 'spotify' && type && id ? `https://open.spotify.com/${type}/${id}` : null;
 };

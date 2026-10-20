@@ -4,31 +4,31 @@
  */
 declare namespace Spotify {
   interface Image {
+    height?: null | number;
     url: string;
-    width?: number | null;
-    height?: number | null;
+    width?: null | number;
   }
 
   interface Track {
-    uri: string;
-    id: string | null;
-    name: string;
-    duration_ms: number;
+    album: { images: Image[]; name: string; uri: string; };
     artists: { name: string; uri: string }[];
-    album: { name: string; uri: string; images: Image[] };
-    linked_from?: { uri: string | null; id: string | null };
+    duration_ms: number;
+    id: null | string;
+    linked_from?: { id: null | string; uri: null | string; };
+    name: string;
+    uri: string;
   }
 
   interface PlaybackState {
+    duration: number;
     paused: boolean;
     position: number;
-    duration: number;
     shuffle: boolean;
     timestamp: number;
     track_window: {
-      current_track: Track | null;
-      previous_tracks: Track[];
+      current_track: null | Track;
       next_tracks: Track[];
+      previous_tracks: Track[];
     };
   }
 
@@ -37,8 +37,8 @@ declare namespace Spotify {
   }
 
   interface PlayerInit {
-    name: string;
     getOAuthToken: (cb: (token: string) => void) => void;
+    name: string;
     volume?: number;
   }
 
@@ -46,13 +46,13 @@ declare namespace Spotify {
     constructor(options: PlayerInit);
     connect(): Promise<boolean>;
     disconnect(): void;
-    addListener(event: 'ready' | 'not_ready', cb: (d: { device_id: string }) => void): boolean;
-    addListener(event: 'player_state_changed', cb: (state: PlaybackState | null) => void): boolean;
+    addListener(event: 'not_ready' | 'ready', cb: (d: { device_id: string }) => void): boolean;
+    addListener(event: 'player_state_changed', cb: (state: null | PlaybackState) => void): boolean;
     addListener(
-      event: 'initialization_error' | 'authentication_error' | 'account_error' | 'playback_error' | 'autoplay_failed',
+      event: 'account_error' | 'authentication_error' | 'autoplay_failed' | 'initialization_error' | 'playback_error',
       cb: (e: WebPlaybackError) => void,
     ): boolean;
-    getCurrentState(): Promise<PlaybackState | null>;
+    getCurrentState(): Promise<null | PlaybackState>;
     getVolume(): Promise<number>;
     setVolume(volume: number): Promise<void>;
     pause(): Promise<void>;
@@ -66,6 +66,6 @@ declare namespace Spotify {
 }
 
 interface Window {
-  Spotify?: typeof Spotify;
   onSpotifyWebPlaybackSDKReady?: () => void;
+  Spotify?: typeof Spotify;
 }

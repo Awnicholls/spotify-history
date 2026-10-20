@@ -1,40 +1,65 @@
 import type { ThemeConfig } from 'antd';
+
 import { theme } from 'antd';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useSystemDark } from '../hooks/useSystemDark';
-import { HEADER_HEIGHT } from '../lib/layout';
-import * as storage from '../lib/storage';
+
 import type { AppConfig, ThemeSettings } from '../types/config';
-import { DEFAULT_CONFIG } from '../types/config';
 import type { StoredHistory } from '../types/history';
 import type { AppViewProps, Page } from './App.view';
 
+import { useSystemDark } from '../hooks/useSystemDark';
+import { HEADER_HEIGHT } from '../lib/layout';
+import * as storage from '../lib/storage';
+import { DEFAULT_CONFIG } from '../types/config';
+
+export interface LoadProgress {
+  percent: number;
+  text: string;
+}
+
+const nextPaint = (): Promise<void> => new Promise<void>((resolve) => requestAnimationFrame(() => setTimeout(resolve, 0)));
+
+const formatMegabytes = (chars: number): string => `${(chars / 1_048_576).toFixed(1)} MB`;
+
 /** Where to land: set up a client ID first, then import history, then the tables. */
-const homePage = (config: AppConfig, history: StoredHistory | null): Page =>
-  !config.clientId ? 'setup' : !history ? 'import' : 'stats';
+const homePage = (config: AppConfig, history: null | StoredHistory): Page =>
+  config.clientId ? history ? 'stats' : 'import' : 'setup';
 
 export const useApp = (): AppViewProps => {
   const [loading, setLoading] = useState(true);
-  const [loadError, setLoadError] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<null | string>(null);
   const [config, setConfig] = useState<AppConfig>(DEFAULT_CONFIG);
-  const [history, setHistory] = useState<StoredHistory | null>(null);
+  const [history, setHistory] = useState<null | StoredHistory>(null);
   const [page, setPage] = useState<Page>('setup');
   const systemDark = useSystemDark();
 
-  // Load saved config + history once on startup.
+  const [loadProgress, setLoadProgress] = useState<LoadProgress>({ percent: 5, text: 'Starting up…' });
+
+  // Load saved config + history once on startup, reporting each step to the loading screen.
   useEffect(() => {
     let cancelled = false;
-    (async () => {
+    const step = async (percent: number, text: string): Promise<void> => {
+      if (cancelled) {return;}
+      setLoadProgress({ percent, text });
+      await nextPaint();
+    };
+    void (async () => {
       try {
-        const [cfg, hist] = await Promise.all([storage.loadConfig(), storage.loadHistory()]);
-        if (cancelled) return;
+        await step(15, 'Loading settings…');
+        const cfg = await storage.loadConfig();
+        const hist = await storage.loadHistory(async (s) => {
+          if (s.stage === 'reading') {await step(35, 'Loading your listening history…');}
+          else {await step(70, `Reading ${formatMegabytes(s.bytes)} of listening history…`);}
+        });
+        await step(90, hist ? `Preparing stats for ${hist.plays.length.toLocaleString()} streams…` : 'Almost ready…');
+        if (cancelled) {return;}
         setConfig(cfg);
         setHistory(hist);
         setPage(homePage(cfg, hist));
       } catch (err) {
-        if (!cancelled) setLoadError(err instanceof Error ? err.message : String(err));
+        if (!cancelled) {setLoadError(err instanceof Error ? err.message : String(err));}
       } finally {
-        if (!cancelled) setLoading(false);
+        if (!cancelled) {setLoading(false);}
       }
     })();
     return () => {
@@ -43,10 +68,10 @@ export const useApp = (): AppViewProps => {
   }, []);
 
   // Config writes are debounced: sliders and the colour picker fire on every move.
-  const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const saveTimer = useRef<null | ReturnType<typeof setTimeout>>(null);
   const pendingConfig = useRef<AppConfig | null>(null);
   const persistConfig = useCallback((next: AppConfig) => {
-    if (saveTimer.current) clearTimeout(saveTimer.current);
+    if (saveTimer.current) {clearTimeout(saveTimer.current);}
     pendingConfig.current = next;
     saveTimer.current = setTimeout(() => {
       pendingConfig.current = null;
@@ -56,9 +81,9 @@ export const useApp = (): AppViewProps => {
 
   // Closing the window inside the debounce window would drop the last change - write it now.
   useEffect(() => {
-    const flush = () => {
-      if (!pendingConfig.current) return;
-      if (saveTimer.current) clearTimeout(saveTimer.current);
+    const flush = (): void => {
+      if (!pendingConfig.current) {return;}
+      if (saveTimer.current) {clearTimeout(saveTimer.current);}
       storage.saveConfigNow(pendingConfig.current);
       pendingConfig.current = null;
     };
@@ -110,7 +135,7 @@ export const useApp = (): AppViewProps => {
     setPage('import');
   }, []);
 
-  const { mode, primaryColor, compact, borderRadius, fontSize } = config.theme;
+  const { borderRadius, compact, fontSize, mode, primaryColor } = config.theme;
   const isDark = mode === 'dark' || (mode === 'system' && systemDark);
 
   useEffect(() => {
@@ -124,31 +149,32 @@ export const useApp = (): AppViewProps => {
         isDark ? theme.darkAlgorithm : theme.defaultAlgorithm,
         ...(compact ? [theme.compactAlgorithm] : []),
       ],
-      token: { colorPrimary: primaryColor, borderRadius, fontSize },
       components: {
         Layout: {
           headerBg: isDark ? '#141414' : '#ffffff',
-          headerPadding: '0 24px',
           headerHeight: HEADER_HEIGHT,
+          headerPadding: '0 24px',
         },
       },
+      token: { borderRadius, colorPrimary: primaryColor, fontSize },
     }),
     [isDark, compact, primaryColor, borderRadius, fontSize],
   );
 
   return {
-    loading,
-    loadError,
-    isDark,
-    themeConfig,
+    clearHistory,
     config,
     history,
-    page,
+    isDark,
+    loadError,
+    loading,
+    loadProgress,
     navigate: setPage,
-    saveClientId,
-    updateTheme,
-    resetTheme,
+    page,
     replaceHistory,
-    clearHistory,
+    resetTheme,
+    saveClientId,
+    themeConfig,
+    updateTheme,
   };
 };

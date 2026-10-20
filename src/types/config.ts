@@ -3,12 +3,12 @@ import type { ThemeSource } from '../../shared/bridge';
 export type ThemeMode = ThemeSource;
 
 export interface ThemeSettings {
+  borderRadius: number;
+  compact: boolean;
+  fontSize: number;
   mode: ThemeMode;
   /** antd `colorPrimary` - any CSS colour string (hex from the colour picker). */
   primaryColor: string;
-  compact: boolean;
-  borderRadius: number;
-  fontSize: number;
 }
 
 export interface AppConfig {
@@ -27,11 +27,11 @@ export const SPOTIFY_GREEN = '#1DB954';
 export const SPOTIFY_REDIRECT_URI = 'http://127.0.0.1:4003/auth';
 
 export const DEFAULT_THEME: ThemeSettings = {
+  borderRadius: 8,
+  compact: false,
+  fontSize: 14,
   mode: 'system',
   primaryColor: SPOTIFY_GREEN,
-  compact: false,
-  borderRadius: 8,
-  fontSize: 14,
 };
 
 export const DEFAULT_CONFIG: AppConfig = {

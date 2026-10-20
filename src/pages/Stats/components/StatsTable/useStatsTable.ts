@@ -1,16 +1,19 @@
 import type { TableProps } from 'antd';
+
 import { useDeferredValue, useMemo, useState } from 'react';
+
 import type { StatCategory, StatRow } from '../../../../lib/aggregate';
+import type { ColumnFilters, SortField, SortState } from './columns';
+import type { StatsTableViewProps } from './StatsTable.view';
+
 import { HEADER_HEIGHT } from '../../../../lib/layout';
 import { useSpotifyControls } from '../../../../spotify/SpotifyContext';
-import type { ColumnFilters, SortField, SortState, TextField } from './columns';
-import { TEXT_FIELDS } from './columns';
-import type { StatsTableViewProps } from './StatsTable.view';
+import { isSortField, isTextField, TEXT_FIELDS } from './columns';
 
 interface UseStatsTableArgs {
   category: StatCategory;
-  rows: StatRow[];
   minPlaySeconds: number;
+  rows: StatRow[];
   stickyOffset?: number;
 }
 
@@ -18,27 +21,29 @@ const DEFAULT_SORT: SortState = { field: 'plays', order: 'descend' };
 /** Spotify accepts long URI lists, but 100 keeps the request small and the queue useful. */
 const MAX_QUEUE = 100;
 
-const compare = (field: SortField) =>
-  TEXT_FIELDS.includes(field as TextField)
-    ? (a: StatRow, b: StatRow) => (a[field] as string).localeCompare(b[field] as string)
-    : (a: StatRow, b: StatRow) => (a[field] as number) - (b[field] as number);
+const compare = (field: SortField): ((a: StatRow, b: StatRow) => number) =>
+  isTextField(field)
+    ? (a: StatRow, b: StatRow) => a[field].localeCompare(b[field])
+    : (a: StatRow, b: StatRow) => a[field] - b[field];
+
+const withChildren = (row: StatRow, children: StatRow[]): StatRow => ({ ...row, children });
 
 /** Sort a level and, recursively, any nested device rows. */
 const sortRows = (rows: StatRow[], sort: SortState): StatRow[] => {
   const cmp = compare(sort.field);
   const dir = sort.order === 'ascend' ? 1 : -1;
-  return [...rows]
-    .sort((a, b) => dir * cmp(a, b) || a.rank - b.rank)
-    .map((r) => (r.children ? { ...r, children: sortRows(r.children, sort) } : r));
+  return rows
+    .toSorted((a, b) => dir * cmp(a, b) || a.rank - b.rank)
+    .map((r) => (r.children ? withChildren(r, sortRows(r.children, sort)) : r));
 };
 
-const matchesText = (r: StatRow, q: string) =>
+const matchesText = (r: StatRow, q: string): boolean =>
   r.name.toLowerCase().includes(q) || r.artist.toLowerCase().includes(q) || r.album.toLowerCase().includes(q);
 
 /** Keep rows matching `test`, or parents with a matching child (showing only those children). */
 const filterTree = (rows: StatRow[], test: (r: StatRow) => boolean): StatRow[] =>
   rows.flatMap((r) => {
-    if (test(r)) return [r];
+    if (test(r)) {return [r];}
     const children = r.children ? filterTree(r.children, test) : [];
     return children.length ? [{ ...r, children }] : [];
   });
@@ -49,13 +54,13 @@ const filterTree = (rows: StatRow[], test: (r: StatRow) => boolean): StatRow[] =
  */
 export const useStatsTable = ({
   category,
-  rows,
   minPlaySeconds,
+  rows,
   stickyOffset = HEADER_HEIGHT,
 }: UseStatsTableArgs): StatsTableViewProps => {
   const spotify = useSpotifyControls();
   const [search, setSearch] = useState('');
-  const [minPlays, setMinPlays] = useState<number | null>(null);
+  const [minPlays, setMinPlays] = useState<null | number>(null);
   const [sort, setSort] = useState<SortState>(DEFAULT_SORT);
   const [columnFilters, setColumnFilters] = useState<ColumnFilters>({});
   // Typing stays snappy on 10k+ rows; the table catches up a frame later.
@@ -63,24 +68,27 @@ export const useStatsTable = ({
 
   const visibleRows = useMemo(() => {
     const q = deferredSearch.trim().toLowerCase();
-    const colFilters = Object.entries(columnFilters).filter(([, v]) => v) as [TextField, string][];
+    const colFilters = TEXT_FIELDS.flatMap((field) => {
+      const value = columnFilters[field];
+      return value ? [{ field, value }] : [];
+    });
     const filtered = filterTree(
       rows,
       (r) =>
         (!minPlays || r.plays >= minPlays) &&
         (!q || matchesText(r, q)) &&
-        colFilters.every(([field, value]) => r[field].toLowerCase().includes(value.toLowerCase())),
+        colFilters.every(({ field, value }) => r[field].toLowerCase().includes(value.toLowerCase())),
     );
     return sortRows(filtered, sort);
   }, [rows, deferredSearch, minPlays, columnFilters, sort]);
 
   const onTableChange: TableProps<StatRow>['onChange'] = (_pagination, filters, sorter) => {
     const s = Array.isArray(sorter) ? sorter[0] : sorter;
-    setSort(s?.order && s.columnKey ? { field: s.columnKey as SortField, order: s.order } : DEFAULT_SORT);
+    setSort(s?.order && isSortField(s.columnKey) ? { field: s.columnKey, order: s.order } : DEFAULT_SORT);
     const next: ColumnFilters = {};
     for (const field of TEXT_FIELDS) {
       const value = filters[field]?.[0];
-      if (typeof value === 'string' && value) next[field] = value;
+      if (typeof value === 'string' && value) {next[field] = value;}
     }
     setColumnFilters(next);
   };
@@ -88,8 +96,8 @@ export const useStatsTable = ({
   const canPlay = category !== 'platforms';
   const singleItems = category === 'songs' || category === 'episodes';
 
-  const onPlay = (row: StatRow) => {
-    const isCurrent = !!spotify.currentUri && row.uris.includes(spotify.currentUri);
+  const onPlay = (row: StatRow): void => {
+    const isCurrent = spotify.currentUri !== null && row.uris.includes(spotify.currentUri);
     if (isCurrent) {
       void spotify.togglePlay();
       return;
@@ -111,19 +119,19 @@ export const useStatsTable = ({
 
   return {
     category,
-    stickyOffset,
-    rows: visibleRows,
-    totalRows: rows.length,
-    minPlaySeconds,
-    search,
-    onSearchChange: setSearch,
-    minPlays,
-    onMinPlaysChange: setMinPlays,
-    sort,
     columnFilters,
+    minPlays,
+    minPlaySeconds,
+    onMinPlaysChange: setMinPlays,
+    onSearchChange: setSearch,
     onTableChange,
     player: canPlay
       ? { currentUri: spotify.currentUri, isPlaying: spotify.isPlaying, onPlay, singleItems }
       : null,
+    rows: visibleRows,
+    search,
+    sort,
+    stickyOffset,
+    totalRows: rows.length,
   };
 };

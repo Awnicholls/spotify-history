@@ -1,34 +1,38 @@
+import type { JSX } from 'react';
+
 import { Alert, Card, Flex, Tabs, Typography } from 'antd';
+
 import type { StatCategory, Summary } from '../../lib/aggregate';
-import { formatDate, formatNumber } from '../../lib/format';
 import type { FilterBarProps } from './components/FilterBar';
+import type { StatsTab } from './useStats';
+
+import { formatDate, formatNumber } from '../../lib/format';
 import { FilterBar } from './components/FilterBar';
 import { StatsTableContainer } from './components/StatsTable/StatsTable.container';
 import { SummaryCards } from './components/SummaryCards';
-import type { StatsTab } from './useStats';
 
 export interface StatsViewProps {
+  activeTab: StatCategory;
   filterBar: FilterBarProps;
   /** Saved before per-device names existed; suggest re-importing. */
   legacyDevices: boolean;
-  summary: Summary;
   minPlaySeconds: number;
-  tabs: StatsTab[];
-  activeTab: StatCategory;
   onTabChange: (key: string) => void;
+  summary: Summary;
+  tabs: StatsTab[];
 }
 
 export const StatsView = ({
+  activeTab,
   filterBar,
   legacyDevices,
-  summary,
   minPlaySeconds,
-  tabs,
-  activeTab,
   onTabChange,
-}: StatsViewProps) => (
-  <Flex vertical gap={16}>
-    <Flex justify="space-between" align="baseline" wrap gap={8}>
+  summary,
+  tabs,
+}: StatsViewProps): JSX.Element => (
+  <Flex gap={16} vertical>
+    <Flex align="baseline" gap={8} justify="space-between" wrap>
       <Typography.Title level={2} style={{ margin: 0 }}>
         Your listening
       </Typography.Title>
@@ -42,29 +46,29 @@ export const StatsView = ({
 
     {legacyDevices && (
       <Alert
-        type="info"
-        showIcon
         closable
-        title="Re-import your history to see individual devices"
         description="This history was saved by an earlier version, so devices only show their type (Android, Xbox, ...). Import the zip again to split them into specific phones and consoles."
+        showIcon
+        title="Re-import your history to see individual devices"
+        type="info"
       />
     )}
 
     <FilterBar {...filterBar} />
 
-    <SummaryCards summary={summary} minPlaySeconds={minPlaySeconds} />
+    <SummaryCards minPlaySeconds={minPlaySeconds} summary={summary} />
 
     <Card styles={{ body: { paddingTop: 4 } }}>
       <Tabs
         activeKey={activeTab}
-        onChange={onTabChange}
         items={tabs.map((tab) => ({
+          children: (
+            <StatsTableContainer category={tab.key} minPlaySeconds={minPlaySeconds} rows={tab.rows} />
+          ),
           key: tab.key,
           label: `${tab.label} (${formatNumber(tab.rows.length)})`,
-          children: (
-            <StatsTableContainer category={tab.key} rows={tab.rows} minPlaySeconds={minPlaySeconds} />
-          ),
         }))}
+        onChange={onTabChange}
       />
     </Card>
   </Flex>

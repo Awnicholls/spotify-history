@@ -31,44 +31,44 @@ const REQUIRED_SCOPES = [
 const SCOPES = REQUIRED_SCOPES.join(' ');
 
 /** Tokens granted before a scope was added can't do everything - sign in again for those. */
-const hasRequiredScopes = (granted: string | undefined) => {
+const hasRequiredScopes = (granted: string | undefined): boolean => {
   const set = new Set((granted ?? '').split(' '));
   return REQUIRED_SCOPES.every((s) => set.has(s));
 };
 
 interface StoredAuth {
   clientId: string;
-  scope?: string;
+  encrypted: boolean;
   /** base64; safeStorage-encrypted when `encrypted` is true. */
   refreshToken: string;
-  encrypted: boolean;
+  scope?: string;
 }
 
 interface Session {
+  accessToken: null | string;
   clientId: string;
-  scope: string;
-  refreshToken: string;
-  accessToken: string | null;
   expiresAt: number;
+  refreshToken: string;
+  scope: string;
 }
 
 interface TokenResponse {
   access_token: string;
-  scope?: string;
-  refresh_token?: string;
   expires_in: number;
+  refresh_token?: string;
+  scope?: string;
 }
 
-const authPath = () => path.join(app.getPath('userData'), 'auth.json');
+const authPath = (): string => path.join(app.getPath('userData'), 'auth.json');
 
-let session: Session | null = null;
+let session: null | Session = null;
 let loaded = false;
-let refreshing: Promise<string | null> | null = null;
+let refreshing: null | Promise<null | string> = null;
 let pendingLogin: { cancel: (reason: Error) => void } | null = null;
 
-const base64url = (buf: Buffer) => buf.toString('base64url');
+const base64url = (buf: Buffer): string => buf.toString('base64url');
 
-const persist = async (s: Session | null) => {
+const persist = async (s: null | Session): Promise<void> => {
   if (!s) {
     await fs.rm(authPath(), { force: true });
     return;
@@ -78,59 +78,77 @@ const persist = async (s: Session | null) => {
   const encrypted = app.isPackaged && safeStorage.isEncryptionAvailable();
   const stored: StoredAuth = {
     clientId: s.clientId,
-    scope: s.scope,
+    encrypted,
     refreshToken: encrypted
       ? safeStorage.encryptString(s.refreshToken).toString('base64')
       : Buffer.from(s.refreshToken, 'utf8').toString('base64'),
-    encrypted,
+    scope: s.scope,
   };
   await fs.mkdir(path.dirname(authPath()), { recursive: true });
   await fs.writeFile(authPath(), JSON.stringify(stored), 'utf8');
 };
 
-const load = async () => {
-  if (loaded) return;
+const load = async (): Promise<void> => {
+  if (loaded) {return;}
   loaded = true;
   try {
-    const stored = JSON.parse(await fs.readFile(authPath(), 'utf8')) as StoredAuth;
+    // Written only by this module (see persist).
+    const stored: StoredAuth = JSON.parse(await fs.readFile(authPath(), 'utf8'));
     const raw = Buffer.from(stored.refreshToken, 'base64');
     session = {
-      clientId: stored.clientId,
-      scope: stored.scope ?? '',
-      refreshToken: stored.encrypted ? safeStorage.decryptString(raw) : raw.toString('utf8'),
       accessToken: null,
+      clientId: stored.clientId,
       expiresAt: 0,
+      refreshToken: stored.encrypted ? safeStorage.decryptString(raw) : raw.toString('utf8'),
+      scope: stored.scope ?? '',
     };
   } catch {
     session = null; // missing or unreadable - treat as signed out
   }
 };
 
+/** A failed token request, with Spotify's OAuth error code (e.g. `invalid_grant`). */
+class TokenError extends Error {
+  code?: string;
+  constructor(message: string, code?: string) {
+    super(message);
+    this.code = code;
+  }
+}
+
 const requestToken = async (params: Record<string, string>): Promise<TokenResponse> => {
   const res = await fetch(TOKEN_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body: new URLSearchParams(params),
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    method: 'POST',
   });
-  const body = (await res.json().catch(() => ({}))) as Partial<TokenResponse> & {
-    error?: string;
-    error_description?: string;
-  };
-  if (!res.ok || !body.access_token) {
-    const err = new Error(body.error_description || body.error || `Token request failed (${res.status})`);
-    (err as Error & { code?: string }).code = body.error;
-    throw err;
+  let body: Partial<TokenResponse> & { error?: string; error_description?: string } = {};
+  try {
+    body = JSON.parse(await res.text());
+  } catch {
+    // Not JSON - handled below as a failed request.
   }
-  return body as TokenResponse;
+  if (!res.ok || !body.access_token || !body.expires_in) {
+    throw new TokenError(
+      body.error_description ?? body.error ?? `Token request failed (${res.status})`,
+      body.error,
+    );
+  }
+  return {
+    access_token: body.access_token,
+    expires_in: body.expires_in,
+    refresh_token: body.refresh_token,
+    scope: body.scope,
+  };
 };
 
-const page = (title: string, text: string) =>
+const page = (title: string, text: string): string =>
   `<!doctype html><meta charset="utf-8"><title>${title}</title>` +
   `<body style="font-family:system-ui;background:#121212;color:#fff;display:grid;place-items:center;height:100vh;margin:0">` +
   `<div style="text-align:center"><h2>${title}</h2><p style="color:#b3b3b3">${text}</p></div></body>`;
 
 /** Start a one-shot loopback server and resolve with the `code` Spotify redirects back with. */
-const waitForCode = (state: string, authorizeUrl: string) =>
+const waitForCode = (state: string, authorizeUrl: string): Promise<string> =>
   new Promise<string>((resolve, reject) => {
     const server = http.createServer((req, res) => {
       const url = new URL(req.url ?? '/', REDIRECT_URI);
@@ -153,14 +171,14 @@ const waitForCode = (state: string, authorizeUrl: string) =>
     const timer = setTimeout(() => finish(new Error('Timed out waiting for Spotify sign-in.')), LOGIN_TIMEOUT_MS);
 
     let done = false;
-    function finish(err: Error | null, code?: string | null) {
-      if (done) return;
+    function finish(err: Error | null, code?: null | string): void {
+      if (done) {return;}
       done = true;
       clearTimeout(timer);
       pendingLogin = null;
       server.close();
-      if (err || !code) reject(err ?? new Error('No authorization code received.'));
-      else resolve(code);
+      if (err || !code) {reject(err ?? new Error('No authorization code received.'));}
+      else {resolve(code);}
     }
 
     pendingLogin = { cancel: (reason) => finish(reason) };
@@ -185,38 +203,38 @@ export const login = async (clientId: string): Promise<void> => {
     'https://accounts.spotify.com/authorize?' +
     new URLSearchParams({
       client_id: clientId,
-      response_type: 'code',
-      redirect_uri: REDIRECT_URI,
-      code_challenge_method: 'S256',
       code_challenge: challenge,
+      code_challenge_method: 'S256',
+      redirect_uri: REDIRECT_URI,
+      response_type: 'code',
       scope: SCOPES,
       state,
     }).toString();
 
   const code = await waitForCode(state, authorizeUrl);
   const tokens = await requestToken({
-    grant_type: 'authorization_code',
-    code,
-    redirect_uri: REDIRECT_URI,
     client_id: clientId,
+    code,
     code_verifier: verifier,
+    grant_type: 'authorization_code',
+    redirect_uri: REDIRECT_URI,
   });
-  if (!tokens.refresh_token) throw new Error('Spotify did not return a refresh token.');
+  if (!tokens.refresh_token) {throw new Error('Spotify did not return a refresh token.');}
 
   session = {
-    clientId,
-    scope: tokens.scope ?? SCOPES,
-    refreshToken: tokens.refresh_token,
     accessToken: tokens.access_token,
+    clientId,
     expiresAt: Date.now() + tokens.expires_in * 1000,
+    refreshToken: tokens.refresh_token,
+    scope: tokens.scope ?? SCOPES,
   };
   loaded = true;
   await persist(session);
 };
 
-export const cancelLogin = () => pendingLogin?.cancel(new Error('Sign-in cancelled.'));
+export const cancelLogin = (): void => pendingLogin?.cancel(new Error('Sign-in cancelled.'));
 
-export const logout = async () => {
+export const logout = async (): Promise<void> => {
   session = null;
   loaded = true;
   await persist(null);
@@ -226,33 +244,33 @@ export const logout = async () => {
  * A valid access token for `clientId`, refreshing when close to expiry. Null when signed out,
  * signed in with a different client ID, or the refresh token was revoked.
  */
-export const getAccessToken = async (clientId: string, forceRefresh = false): Promise<string | null> => {
+export const getAccessToken = async (clientId: string, forceRefresh = false): Promise<null | string> => {
   await load();
-  if (!session || session.clientId !== clientId) return null;
+  if (!session || session.clientId !== clientId) {return null;}
   if (!hasRequiredScopes(session.scope)) {
     await logout();
     return null;
   }
-  if (!forceRefresh && session.accessToken && session.expiresAt - 60_000 > Date.now()) return session.accessToken;
+  if (!forceRefresh && session.accessToken && session.expiresAt - 60_000 > Date.now()) {return session.accessToken;}
 
   refreshing ??= (async () => {
-    const s = session!;
+    const s = session;
     try {
       const tokens = await requestToken({
+        client_id: s.clientId,
         grant_type: 'refresh_token',
         refresh_token: s.refreshToken,
-        client_id: s.clientId,
       });
       s.accessToken = tokens.access_token;
       s.expiresAt = Date.now() + tokens.expires_in * 1000;
-      if (tokens.scope) s.scope = tokens.scope;
+      if (tokens.scope) {s.scope = tokens.scope;}
       if (tokens.refresh_token && tokens.refresh_token !== s.refreshToken) {
         s.refreshToken = tokens.refresh_token;
         await persist(s);
       }
       return s.accessToken;
     } catch (err) {
-      if ((err as Error & { code?: string }).code === 'invalid_grant') {
+      if (err instanceof TokenError && err.code === 'invalid_grant') {
         await logout();
         return null;
       }

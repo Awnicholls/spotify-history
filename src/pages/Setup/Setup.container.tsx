@@ -1,3 +1,5 @@
+import type { JSX } from 'react';
+
 import { SetupView } from './Setup.view';
 import { useSetup } from './useSetup';
 
@@ -7,6 +9,6 @@ import { useSetup } from './useSetup';
  */
 export const SetupContainer = (props: {
   clientId: string;
-  onSave: (clientId: string) => void;
   onCancel?: () => void;
-}) => <SetupView {...useSetup(props)} />;
+  onSave: (clientId: string) => void;
+}): JSX.Element => <SetupView {...useSetup(props)} />;

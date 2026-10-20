@@ -1,5 +1,8 @@
+import type { JSX } from 'react';
+
 import type { AppConfig, ThemeSettings } from '../../types/config';
 import type { StoredHistory } from '../../types/history';
+
 import { SettingsView } from './Settings.view';
 import { useSettings } from './useSettings';
 
@@ -9,10 +12,10 @@ import { useSettings } from './useSettings';
  */
 export const SettingsContainer = (props: {
   config: AppConfig;
-  history: StoredHistory | null;
-  updateTheme: (patch: Partial<ThemeSettings>) => void;
-  resetTheme: () => void;
+  history: null | StoredHistory;
   onChangeClientId: () => void;
-  onImport: () => void;
   onClearHistory: () => Promise<void>;
-}) => <SettingsView {...useSettings(props)} />;
+  onImport: () => void;
+  resetTheme: () => void;
+  updateTheme: (patch: Partial<ThemeSettings>) => void;
+}): JSX.Element => <SettingsView {...useSettings(props)} />;

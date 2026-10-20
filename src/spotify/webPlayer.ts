@@ -10,7 +10,7 @@ const SDK_URL = 'https://sdk.scdn.co/spotify-player.js';
 const SDK_TIMEOUT_MS = 15_000;
 export const PLAYER_NAME = 'Spotify Utils';
 
-let sdkPromise: Promise<typeof Spotify> | null = null;
+let sdkPromise: null | Promise<typeof Spotify> = null;
 
 export const loadSdk = (): Promise<typeof Spotify> =>
   (sdkPromise ??= new Promise<typeof Spotify>((resolve, reject) => {
@@ -24,27 +24,27 @@ export const loadSdk = (): Promise<typeof Spotify> =>
     }, SDK_TIMEOUT_MS);
     window.onSpotifyWebPlaybackSDKReady = () => {
       clearTimeout(timer);
-      resolve(window.Spotify!);
+      resolve(window.Spotify);
     };
     const script = document.createElement('script');
     script.src = SDK_URL;
     script.async = true;
-    script.onerror = () => {
+    script.addEventListener('error', () => {
       clearTimeout(timer);
       sdkPromise = null;
       reject(new Error('Could not load the Spotify Web Playback SDK. Check your internet connection.'));
-    };
+    });
     document.head.appendChild(script);
   }));
 
 /** Whether this runtime can decrypt Spotify's audio (Widevine via EME). */
 export const hasWidevine = async (): Promise<boolean> => {
-  if (!navigator.requestMediaKeySystemAccess) return false;
+  if (!navigator.requestMediaKeySystemAccess) {return false;}
   try {
     await navigator.requestMediaKeySystemAccess('com.widevine.alpha', [
       {
-        initDataTypes: ['cenc'],
         audioCapabilities: [{ contentType: 'audio/mp4; codecs="mp4a.40.2"' }],
+        initDataTypes: ['cenc'],
       },
     ]);
     return true;
@@ -54,33 +54,33 @@ export const hasWidevine = async (): Promise<boolean> => {
 };
 
 export type WebPlayerErrorKind =
-  | 'unsupported'
-  | 'load'
+  | 'account_error'
+  | 'authentication_error'
+  | 'autoplay_failed'
   | 'connect'
   | 'initialization_error'
-  | 'authentication_error'
-  | 'account_error'
+  | 'load'
   | 'playback_error'
-  | 'autoplay_failed';
+  | 'unsupported';
 
 export interface WebPlayerEvents {
-  onReady: (deviceId: string) => void;
-  onNotReady: () => void;
-  onState: (state: Spotify.PlaybackState | null) => void;
   onError: (kind: WebPlayerErrorKind, message: string) => void;
+  onNotReady: () => void;
+  onReady: (deviceId: string) => void;
+  onState: (state: null | Spotify.PlaybackState) => void;
 }
 
 export const createWebPlayer = async (
-  getToken: () => Promise<string | null>,
+  getToken: () => Promise<null | string>,
   events: WebPlayerEvents,
   volume = 0.6,
 ): Promise<Spotify.Player> => {
   const sdk = await loadSdk();
   const player = new sdk.Player({
-    name: PLAYER_NAME,
     getOAuthToken: (cb) => {
       void getToken().then((token) => token && cb(token));
     },
+    name: PLAYER_NAME,
     volume,
   });
 
@@ -92,6 +92,6 @@ export const createWebPlayer = async (
   );
 
   const connected = await player.connect();
-  if (!connected) events.onError('connect', 'Could not connect the Spotify player.');
+  if (!connected) {events.onError('connect', 'Could not connect the Spotify player.');}
   return player;
 };

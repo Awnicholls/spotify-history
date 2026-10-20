@@ -41,7 +41,9 @@
     "cross-env": "^10.1.0",
     "electron": "https://github.com/castlabs/electron-releases#v44.5.1+wvcus",
     "electron-builder": "^26.15.3",
+    "eslint-plugin-perfectionist": "^5.12.1",
     "oxlint": "^1.81.0",
+    "oxlint-tsgolint": "^7.0.2004",
     "typescript": "~6.0.2",
     "vite": "^8.3.0",
     "wait-on": "^9.5.1"
@@ -64,6 +66,7 @@
       "package.json"
     ],
     "afterPack": "scripts/vmp-sign.cjs",
+    "afterSign": "scripts/vmp-sign-after-sign.cjs",
     "mac": {
       "category": "public.app-category.music",
       "target": [

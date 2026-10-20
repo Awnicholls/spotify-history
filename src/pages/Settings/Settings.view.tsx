@@ -1,3 +1,5 @@
+import type { JSX, ReactNode } from 'react';
+
 import { DeleteOutlined, DesktopOutlined, MoonOutlined, SunOutlined, UndoOutlined } from '@ant-design/icons';
 import {
   Button,
@@ -12,89 +14,90 @@ import {
   Switch,
   Typography,
 } from 'antd';
-import type { ReactNode } from 'react';
-import { formatDate, formatDateTime, formatNumber } from '../../lib/format';
+
 import type { SpotifyStatus } from '../../spotify/SpotifyContext';
 import type { ThemeMode, ThemeSettings } from '../../types/config';
+
+import { formatDate, formatDateTime, formatNumber } from '../../lib/format';
 import { ThemePreview } from './components/ThemePreview';
 
 export interface SettingsViewProps {
-  theme: ThemeSettings;
-  colorPresets: string[];
-  clientId: string;
-  redirectUri: string;
-  historyInfo: {
-    streams: number;
-    firstTs: number;
-    lastTs: number;
-    importedAt: number;
-    files: string[];
-  } | null;
   clearing: boolean;
-  spotifyStatus: SpotifyStatus;
-  spotifyUser: string | null;
+  clientId: string;
+  colorPresets: string[];
+  historyInfo: {
+    files: string[];
+    firstTs: number;
+    importedAt: number;
+    lastTs: number;
+    streams: number;
+  } | null;
+  onChangeClientId: () => void;
+  onClearHistory: () => void;
+  onImport: () => void;
+  onResetTheme: () => void;
   onSpotifyConnect: () => void;
   onSpotifyDisconnect: () => void;
   onThemeChange: (patch: Partial<ThemeSettings>) => void;
-  onResetTheme: () => void;
-  onChangeClientId: () => void;
-  onImport: () => void;
-  onClearHistory: () => void;
+  redirectUri: string;
+  spotifyStatus: SpotifyStatus;
+  spotifyUser: null | string;
+  theme: ThemeSettings;
 }
 
-const MODE_OPTIONS: { label: string; value: ThemeMode; icon: ReactNode }[] = [
-  { label: 'Light', value: 'light', icon: <SunOutlined /> },
-  { label: 'Dark', value: 'dark', icon: <MoonOutlined /> },
-  { label: 'System', value: 'system', icon: <DesktopOutlined /> },
+const MODE_OPTIONS: { icon: ReactNode; label: string; value: ThemeMode; }[] = [
+  { icon: <SunOutlined />, label: 'Light', value: 'light' },
+  { icon: <MoonOutlined />, label: 'Dark', value: 'dark' },
+  { icon: <DesktopOutlined />, label: 'System', value: 'system' },
 ];
 
 export const SettingsView = ({
-  theme,
-  colorPresets,
-  clientId,
-  redirectUri,
-  historyInfo,
   clearing,
-  spotifyStatus,
-  spotifyUser,
+  clientId,
+  colorPresets,
+  historyInfo,
+  onChangeClientId,
+  onClearHistory,
+  onImport,
+  onResetTheme,
   onSpotifyConnect,
   onSpotifyDisconnect,
   onThemeChange,
-  onResetTheme,
-  onChangeClientId,
-  onImport,
-  onClearHistory,
-}: SettingsViewProps) => (
+  redirectUri,
+  spotifyStatus,
+  spotifyUser,
+  theme,
+}: SettingsViewProps): JSX.Element => (
   <Flex justify="center">
-    <Flex vertical gap={16} style={{ width: '100%', maxWidth: 820 }}>
+    <Flex gap={16} style={{ maxWidth: 820, width: '100%' }} vertical>
       <Typography.Title level={2} style={{ margin: 0 }}>
         Settings
       </Typography.Title>
 
       <Card
-        title="Appearance"
         extra={
           <Button icon={<UndoOutlined />} onClick={onResetTheme}>
             Reset to defaults
           </Button>
         }
+        title="Appearance"
       >
-        <Flex wrap gap={32}>
+        <Flex gap={32} wrap>
           <Form layout="vertical" style={{ flex: '1 1 320px' }}>
             <Form.Item label="Theme">
               <Segmented<ThemeMode>
-                value={theme.mode}
                 onChange={(mode) => onThemeChange({ mode })}
                 options={MODE_OPTIONS}
+                value={theme.mode}
               />
             </Form.Item>
             <Form.Item label="Accent colour">
               <ColorPicker
-                value={theme.primaryColor}
-                showText
                 disabledAlpha
-                presets={[{ label: 'Presets', colors: colorPresets }]}
                 onChange={(color) => onThemeChange({ primaryColor: color.toHexString() })}
+                presets={[{ colors: colorPresets, label: 'Presets' }]}
+                showText
+                value={theme.primaryColor}
               />
             </Form.Item>
             <Form.Item label="Compact layout" tooltip="Tighter spacing - fits more table rows on screen">
@@ -102,18 +105,18 @@ export const SettingsView = ({
             </Form.Item>
             <Form.Item label={`Corner radius (${theme.borderRadius}px)`}>
               <Slider
-                min={0}
                 max={16}
-                value={theme.borderRadius}
+                min={0}
                 onChange={(borderRadius) => onThemeChange({ borderRadius })}
+                value={theme.borderRadius}
               />
             </Form.Item>
             <Form.Item label={`Font size (${theme.fontSize}px)`} style={{ marginBottom: 0 }}>
               <Slider
-                min={12}
                 max={18}
-                value={theme.fontSize}
+                min={12}
                 onChange={(fontSize) => onThemeChange({ fontSize })}
+                value={theme.fontSize}
               />
             </Form.Item>
           </Form>
@@ -123,7 +126,7 @@ export const SettingsView = ({
         </Flex>
       </Card>
 
-      <Card title="Spotify" extra={<Button onClick={onChangeClientId}>Change client ID</Button>}>
+      <Card extra={<Button onClick={onChangeClientId}>Change client ID</Button>} title="Spotify">
         <Descriptions column={1} size="small">
           <Descriptions.Item label="Client ID">
             <Typography.Text code copyable>
@@ -137,9 +140,9 @@ export const SettingsView = ({
           </Descriptions.Item>
           <Descriptions.Item label="Account">
             {spotifyStatus === 'signedIn' ? (
-              <Flex gap={12} align="center">
+              <Flex align="center" gap={12}>
                 <Typography.Text>Connected{spotifyUser ? ` as ${spotifyUser}` : ''}</Typography.Text>
-                <Button size="small" onClick={onSpotifyDisconnect}>
+                <Button onClick={onSpotifyDisconnect} size="small">
                   Disconnect
                 </Button>
               </Flex>
@@ -147,36 +150,35 @@ export const SettingsView = ({
               <Typography.Text type="secondary">Available in the desktop app</Typography.Text>
             ) : (
               <Button
-                size="small"
-                type="primary"
                 loading={spotifyStatus === 'connecting' || spotifyStatus === 'checking'}
                 onClick={onSpotifyConnect}
+                size="small"
+                type="primary"
               >
                 Connect Spotify
               </Button>
             )}
           </Descriptions.Item>
         </Descriptions>
-        <Typography.Paragraph type="secondary" style={{ margin: '8px 0 0' }}>
+        <Typography.Paragraph style={{ margin: '8px 0 0' }} type="secondary">
           Playback is remote control: songs play on your Spotify app or device (Premium required).
           Playlists are created in the connected account.
         </Typography.Paragraph>
       </Card>
 
       <Card
-        title="Streaming history"
         extra={
           <Flex gap={8}>
-            <Button type="primary" onClick={onImport}>
+            <Button onClick={onImport} type="primary">
               {historyInfo ? 'Import new export' : 'Import history'}
             </Button>
             {historyInfo && (
               <Popconfirm
-                title="Remove streaming history?"
                 description="The imported history is deleted from this app. Your zip file isn't touched."
-                okText="Remove"
                 okButtonProps={{ danger: true }}
+                okText="Remove"
                 onConfirm={onClearHistory}
+                title="Remove streaming history?"
               >
                 <Button danger icon={<DeleteOutlined />} loading={clearing}>
                   Remove
@@ -185,6 +187,7 @@ export const SettingsView = ({
             )}
           </Flex>
         }
+        title="Streaming history"
       >
         {historyInfo ? (
           <Descriptions column={1} size="small">

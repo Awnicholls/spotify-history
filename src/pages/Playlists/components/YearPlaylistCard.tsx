@@ -1,15 +1,17 @@
+import type { CSSProperties } from 'react';
+
 import { CaretRightFilled, CheckCircleFilled, CloudUploadOutlined } from '@ant-design/icons';
 import { Button, Card, Flex, Tag, Typography } from 'antd';
-import type { CSSProperties } from 'react';
 import { memo } from 'react';
+
 import type { YearPlaylist } from '../Playlists.view';
 
 interface YearPlaylistCardProps {
+  currentUri: null | string;
+  onAdd: (year: number) => void;
+  onPlay: (year: number) => void;
   playlist: YearPlaylist;
   size: number;
-  currentUri: string | null;
-  onPlay: (year: number) => void;
-  onAdd: (year: number) => void;
 }
 
 // Plain elements + CSS ellipsis for the song rows: Typography's measured ellipsis and per-row
@@ -18,12 +20,28 @@ const ellipsis: CSSProperties = { overflow: 'hidden', textOverflow: 'ellipsis', 
 const muted: CSSProperties = { color: 'var(--ant-color-text-secondary)', fontSize: 12 };
 
 /** One year's top songs, with play and add-to-Spotify actions. */
-export const YearPlaylistCard = memo(({ playlist, size, currentUri, onPlay, onAdd }: YearPlaylistCardProps) => {
-  const { year, songs, uris, created } = playlist;
+export const YearPlaylistCard = memo(({ currentUri, onAdd, onPlay, playlist, size }: YearPlaylistCardProps) => {
+  const { created, songs, uris, year } = playlist;
   const short = songs.length < size;
 
   return (
     <Card
+      actions={[
+        created ? (
+          <Typography.Link href={created.url} key="open" rel="noreferrer" target="_blank">
+            <CheckCircleFilled /> Open “{created.name}” in Spotify
+          </Typography.Link>
+        ) : (
+          <Button disabled={!uris.length} icon={<CloudUploadOutlined />} key="add" onClick={() => onAdd(year)} type="link">
+            Add to Spotify
+          </Button>
+        ),
+      ]}
+      extra={
+        <Button disabled={!uris.length} icon={<CaretRightFilled />} onClick={() => onPlay(year)} size="small">
+          Play
+        </Button>
+      }
       size="small"
       style={{ minWidth: 0 }}
       title={
@@ -32,39 +50,23 @@ export const YearPlaylistCard = memo(({ playlist, size, currentUri, onPlay, onAd
           <Tag style={{ marginInlineEnd: 0 }}>{short ? `${songs.length} songs` : `Top ${size}`}</Tag>
         </Flex>
       }
-      extra={
-        <Button size="small" icon={<CaretRightFilled />} onClick={() => onPlay(year)} disabled={!uris.length}>
-          Play
-        </Button>
-      }
-      actions={[
-        created ? (
-          <Typography.Link key="open" href={created.url} target="_blank" rel="noreferrer">
-            <CheckCircleFilled /> Open “{created.name}” in Spotify
-          </Typography.Link>
-        ) : (
-          <Button key="add" type="link" icon={<CloudUploadOutlined />} onClick={() => onAdd(year)} disabled={!uris.length}>
-            Add to Spotify
-          </Button>
-        ),
-      ]}
     >
-      <ol style={{ margin: 0, padding: 0, listStyle: 'none', height: 340, overflowY: 'auto' }}>
+      <ol style={{ height: 340, listStyle: 'none', margin: 0, overflowY: 'auto', padding: 0 }}>
         {songs.map((s, i) => {
-          const playing = !!currentUri && s.uris.includes(currentUri);
+          const playing = currentUri !== null && s.uris.includes(currentUri);
           return (
             <li
               key={s.key}
+              style={{ alignItems: 'center', display: 'flex', gap: 10, padding: '3px 4px 3px 0' }}
               title={`${s.name} — ${s.artist}`}
-              style={{ display: 'flex', gap: 10, alignItems: 'center', padding: '3px 4px 3px 0' }}
             >
-              <span style={{ ...muted, fontSize: 13, width: 28, textAlign: 'right', flexShrink: 0 }}>{i + 1}</span>
-              <span style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
+              <span style={{ ...muted, flexShrink: 0, fontSize: 13, textAlign: 'right', width: 28 }}>{i + 1}</span>
+              <span style={{ display: 'flex', flex: 1, flexDirection: 'column', minWidth: 0 }}>
                 <span
                   style={{
                     ...ellipsis,
-                    fontWeight: playing ? 600 : undefined,
                     color: playing ? 'var(--ant-color-primary)' : undefined,
+                    fontWeight: playing ? 600 : undefined,
                   }}
                 >
                   {s.name}

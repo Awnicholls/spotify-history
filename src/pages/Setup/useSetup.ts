@@ -1,26 +1,28 @@
 import { useState } from 'react';
-import { SPOTIFY_REDIRECT_URI } from '../../types/config';
+
 import type { SetupViewProps } from './Setup.view';
+
+import { SPOTIFY_REDIRECT_URI } from '../../types/config';
 
 interface UseSetupArgs {
   clientId: string;
-  onSave: (clientId: string) => void;
   onCancel?: () => void;
+  onSave: (clientId: string) => void;
 }
 
 // Spotify client IDs are 32 hex characters.
 const CLIENT_ID_PATTERN = /^[0-9a-f]{32}$/i;
 
-export const useSetup = ({ clientId, onSave, onCancel }: UseSetupArgs): SetupViewProps => {
+export const useSetup = ({ clientId, onCancel, onSave }: UseSetupArgs): SetupViewProps => {
   const [value, setValue] = useState(clientId);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<null | string>(null);
 
-  const onChange = (next: string) => {
+  const onChange = (next: string): void => {
     setValue(next);
-    if (error) setError(null);
+    if (error) {setError(null);}
   };
 
-  const onSubmit = () => {
+  const onSubmit = (): void => {
     const trimmed = value.trim();
     if (!trimmed) {
       setError('Enter the client ID from your Spotify developer dashboard app.');
@@ -36,12 +38,12 @@ export const useSetup = ({ clientId, onSave, onCancel }: UseSetupArgs): SetupVie
   };
 
   return {
-    value,
     error,
-    redirectUri: SPOTIFY_REDIRECT_URI,
-    isChanging: !!clientId,
+    isChanging: Boolean(clientId),
+    onCancel,
     onChange,
     onSubmit,
-    onCancel,
+    redirectUri: SPOTIFY_REDIRECT_URI,
+    value,
   };
 };

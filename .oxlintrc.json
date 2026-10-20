@@ -1,8 +1,75 @@
 {
   "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
+  "plugins": ["eslint", "typescript", "unicorn", "react", "jsx-a11y", "oxc", "import"],
+  "jsPlugins": ["eslint-plugin-perfectionist"],
+  "env": { "browser": true, "es2020": true },
+  "options": { "typeAware": true },
+  "categories": {
+    "correctness": "error",
+    "suspicious": "warn",
+    "perf": "warn"
+  },
+  "ignorePatterns": ["dist", "dist-electron", "release", "node_modules", "README.md", "eslint.config.mjs", ".yarn/**"],
   "rules": {
+    "unicorn/no-array-reverse": "off",
+    "unicorn/prefer-top-level-await": "off",
+    "unicorn/no-null": "off",
+    "unicorn/no-useless-undefined": "off",
+    "unicorn/no-array-for-each": "off",
+    "unicorn/no-array-callback-reference": "off",
+    "unicorn/catch-error-name": "off",
+    "unicorn/prefer-node-protocol": "off",
+    "unicorn/no-nested-ternary": "off",
+    "unicorn/no-abusive-eslint-disable": "off",
+    "unicorn/filename-case": "off",
+
     "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
+    "react/exhaustive-deps": "warn",
+    "react/only-export-components": ["warn", { "allowConstantExport": true }],
+    "react/react-in-jsx-scope": "off",
+
+    "typescript/no-unnecessary-type-conversion": "warn",
+    "typescript/await-thenable": "warn",
+    "typescript/restrict-template-expressions": ["error", { "allowNumber": true }],
+    "typescript/prefer-nullish-coalescing": "warn",
+    "typescript/return-await": "warn",
+    "typescript/dot-notation": "off",
+    "typescript/no-non-null-assertion": "warn",
+    "typescript/consistent-type-imports": ["error", { "prefer": "type-imports" }],
+    "typescript/explicit-function-return-type": [
+      "warn",
+      { "allowExpressions": true, "allowTypedFunctionExpressions": true }
+    ],
+
+    "no-unused-vars": [
+      "error",
+      { "argsIgnorePattern": "^_", "varsIgnorePattern": "^_", "caughtErrorsIgnorePattern": "^_" }
+    ],
+    "no-empty-function": "off",
+    "arrow-body-style": ["error", "as-needed"],
+    "no-negated-condition": "error",
+    "no-await-in-loop": "warn",
+    "no-console": ["warn", { "allow": ["warn", "error"] }],
+    "import/no-unassigned-import": ["warn", { "allow": ["**/*.css"] }],
+    "eqeqeq": ["error", "always"],
+    "curly": ["error", "all"],
+    "no-implicit-coercion": "error",
+    "prefer-const": "error",
+    "no-var": "error",
+    "perfectionist/sort-imports": ["error", { "type": "alphabetical" }],
+    "perfectionist/sort-named-imports": ["error", { "type": "alphabetical" }],
+    "perfectionist/sort-named-exports": ["error", { "type": "alphabetical" }],
+    "perfectionist/sort-exports": ["error", { "type": "alphabetical" }],
+    "perfectionist/sort-objects": ["error", { "type": "alphabetical" }],
+    "perfectionist/sort-interfaces": ["error", { "type": "alphabetical" }],
+    "perfectionist/sort-object-types": ["error", { "type": "alphabetical" }],
+    "perfectionist/sort-union-types": ["error", { "type": "alphabetical" }],
+    "perfectionist/sort-jsx-props": ["error", { "type": "alphabetical" }]
+  },
+  "overrides": [
+    {
+      "files": ["scripts/**", "electron/**"],
+      "rules": { "no-console": "off" }
+    }
+  ]
 }

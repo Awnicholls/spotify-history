@@ -1,3 +1,6 @@
+import type { MenuProps, ThemeConfig } from 'antd';
+import type { JSX } from 'react';
+
 import {
   AreaChartOutlined,
   BarChartOutlined,
@@ -6,8 +9,13 @@ import {
   SettingOutlined,
   UnorderedListOutlined,
 } from '@ant-design/icons';
-import type { MenuProps, ThemeConfig } from 'antd';
-import { Alert, App as AntApp, ConfigProvider, Flex, Layout, Menu, Spin, Typography } from 'antd';
+import { Alert, App as AntApp, ConfigProvider, Flex, Layout, Menu, Typography } from 'antd';
+
+import type { AppConfig, ThemeSettings } from '../types/config';
+import type { StoredHistory } from '../types/history';
+import type { LoadProgress } from './useApp';
+
+import { LoadingScreen } from '../components/LoadingScreen';
 import { SpotifyPlayerContainer } from '../components/SpotifyPlayer/SpotifyPlayer.container';
 import { GraphsContainer } from '../pages/Graphs/Graphs.container';
 import { ImportHistoryContainer } from '../pages/ImportHistory/ImportHistory.container';
@@ -16,44 +24,47 @@ import { SettingsContainer } from '../pages/Settings/Settings.container';
 import { SetupContainer } from '../pages/Setup/Setup.container';
 import { StatsContainer } from '../pages/Stats/Stats.container';
 import { SpotifyProvider } from '../spotify/SpotifyProvider';
-import type { AppConfig, ThemeSettings } from '../types/config';
-import type { StoredHistory } from '../types/history';
 
-export type Page = 'setup' | 'import' | 'stats' | 'graphs' | 'playlists' | 'settings';
+export type Page = 'graphs' | 'import' | 'playlists' | 'settings' | 'setup' | 'stats';
+
+const PAGES: readonly Page[] = ['graphs', 'import', 'playlists', 'settings', 'setup', 'stats'];
+const isPage = (key: string): key is Page => PAGES.some((p) => p === key);
 
 export interface AppViewProps {
-  loading: boolean;
-  loadError: string | null;
-  isDark: boolean;
-  themeConfig: ThemeConfig;
-  config: AppConfig;
-  history: StoredHistory | null;
-  page: Page;
-  navigate: (page: Page) => void;
-  saveClientId: (clientId: string) => void;
-  updateTheme: (patch: Partial<ThemeSettings>) => void;
-  resetTheme: () => void;
-  replaceHistory: (history: StoredHistory) => Promise<void>;
   clearHistory: () => Promise<void>;
+  config: AppConfig;
+  history: null | StoredHistory;
+  isDark: boolean;
+  loadError: null | string;
+  loading: boolean;
+  /** Startup progress shown while `loading`. */
+  loadProgress: LoadProgress;
+  navigate: (page: Page) => void;
+  page: Page;
+  replaceHistory: (history: StoredHistory) => Promise<void>;
+  resetTheme: () => void;
+  saveClientId: (clientId: string) => void;
+  themeConfig: ThemeConfig;
+  updateTheme: (patch: Partial<ThemeSettings>) => void;
 }
 
-const PageBody = (props: AppViewProps) => {
-  const { page, config, history, navigate } = props;
+const PageBody = (props: AppViewProps): JSX.Element | null => {
+  const { config, history, navigate, page } = props;
   switch (page) {
     case 'setup':
       return (
         <SetupContainer
           clientId={config.clientId}
-          onSave={props.saveClientId}
           onCancel={config.clientId ? () => navigate('settings') : undefined}
+          onSave={props.saveClientId}
         />
       );
     case 'import':
       return (
         <ImportHistoryContainer
           history={history}
-          onImported={props.replaceHistory}
           onCancel={history ? () => navigate('stats') : undefined}
+          onImported={props.replaceHistory}
         />
       );
     case 'stats':
@@ -67,29 +78,31 @@ const PageBody = (props: AppViewProps) => {
         <SettingsContainer
           config={config}
           history={history}
-          updateTheme={props.updateTheme}
-          resetTheme={props.resetTheme}
           onChangeClientId={() => navigate('setup')}
-          onImport={() => navigate('import')}
           onClearHistory={props.clearHistory}
+          onImport={() => navigate('import')}
+          resetTheme={props.resetTheme}
+          updateTheme={props.updateTheme}
         />
       );
+    default:
+      return null;
   }
 };
 
-export const AppView = (props: AppViewProps) => {
-  const { loading, loadError, isDark, themeConfig, config, history, page, navigate } = props;
+export const AppView = (props: AppViewProps): JSX.Element => {
+  const { config, history, isDark, loadError, loading, navigate, page, themeConfig } = props;
 
   const menuItems: MenuProps['items'] = [
-    { key: 'stats', icon: <BarChartOutlined />, label: 'Stats', disabled: !history },
-    { key: 'graphs', icon: <AreaChartOutlined />, label: 'Graphs', disabled: !history },
-    { key: 'playlists', icon: <UnorderedListOutlined />, label: 'Playlists', disabled: !history },
-    { key: 'import', icon: <CloudUploadOutlined />, label: 'Import history' },
-    { key: 'settings', icon: <SettingOutlined />, label: 'Settings' },
+    { disabled: !history, icon: <BarChartOutlined />, key: 'stats', label: 'Stats' },
+    { disabled: !history, icon: <AreaChartOutlined />, key: 'graphs', label: 'Graphs' },
+    { disabled: !history, icon: <UnorderedListOutlined />, key: 'playlists', label: 'Playlists' },
+    { icon: <CloudUploadOutlined />, key: 'import', label: 'Import history' },
+    { icon: <SettingOutlined />, key: 'settings', label: 'Settings' },
   ];
 
   // The nav only appears once a client ID exists - first run is a focused setup screen.
-  const showNav = !loading && !!config.clientId;
+  const showNav = !loading && Boolean(config.clientId);
 
   return (
     <ConfigProvider theme={themeConfig}>
@@ -99,39 +112,39 @@ export const AppView = (props: AppViewProps) => {
           {showNav && (
             <Layout.Header
               style={{
-                display: 'flex',
                 alignItems: 'center',
+                borderBottom: `1px solid ${isDark ? '#303030' : '#f0f0f0'}`,
+                display: 'flex',
                 gap: 24,
                 position: 'sticky',
                 top: 0,
                 zIndex: 20,
-                borderBottom: `1px solid ${isDark ? '#303030' : '#f0f0f0'}`,
               }}
             >
               <Flex align="center" gap={10} style={{ flexShrink: 0 }}>
-                <CustomerServiceFilled style={{ fontSize: 22, color: config.theme.primaryColor }} />
+                <CustomerServiceFilled style={{ color: config.theme.primaryColor, fontSize: 22 }} />
                 <Typography.Text strong style={{ fontSize: 16 }}>
                   Spotify Utils
                 </Typography.Text>
               </Flex>
               <Menu
-                mode="horizontal"
-                selectedKeys={[page === 'setup' ? 'settings' : page]}
                 items={menuItems}
-                onClick={({ key }) => navigate(key as Page)}
-                style={{ flex: 1, minWidth: 0, borderBottom: 'none', background: 'transparent' }}
+                mode="horizontal"
+                onClick={({ key }) => {
+                  if (isPage(key)) {navigate(key);}
+                }}
+                selectedKeys={[page === 'setup' ? 'settings' : page]}
+                style={{ background: 'transparent', borderBottom: 'none', flex: 1, minWidth: 0 }}
               />
               <SpotifyPlayerContainer />
             </Layout.Header>
           )}
           <Layout.Content style={{ padding: 24 }}>
             {loadError && (
-              <Alert type="error" showIcon title="Could not load saved data" description={loadError} />
+              <Alert description={loadError} showIcon title="Could not load saved data" type="error" />
             )}
             {loading ? (
-              <Flex justify="center" align="center" style={{ minHeight: '60vh' }}>
-                <Spin size="large" />
-              </Flex>
+              <LoadingScreen accent={config.theme.primaryColor} percent={props.loadProgress.percent} text={props.loadProgress.text} />
             ) : (
               <PageBody {...props} />
             )}

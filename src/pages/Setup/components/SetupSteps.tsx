@@ -1,9 +1,10 @@
+import type { JSX, ReactNode } from 'react';
+
 import { Typography } from 'antd';
-import type { ReactNode } from 'react';
 
 const DASHBOARD_URL = 'https://developer.spotify.com/dashboard';
 
-const Step = ({ n, children }: { n: number; children: ReactNode }) => (
+const Step = ({ children, n }: { children: ReactNode; n: number; }): JSX.Element => (
   <li style={{ marginBottom: 8 }}>
     <Typography.Text type="secondary">
       <Typography.Text strong>{n}.</Typography.Text> {children}
@@ -12,13 +13,13 @@ const Step = ({ n, children }: { n: number; children: ReactNode }) => (
 );
 
 /** "How to get your client ID" - ported from Spotify Knockout's connect screen. */
-export const SetupSteps = ({ redirectUri }: { redirectUri: string }) => (
+export const SetupSteps = ({ redirectUri }: { redirectUri: string }): JSX.Element => (
   <div>
     <Typography.Text strong>How to get your client ID</Typography.Text>
-    <ol style={{ listStyle: 'none', padding: 0, margin: '10px 0 0' }}>
+    <ol style={{ listStyle: 'none', margin: '10px 0 0', padding: 0 }}>
       <Step n={1}>
         Sign in to the Spotify developer dashboard:{' '}
-        <Typography.Link href={DASHBOARD_URL} target="_blank" rel="noreferrer">
+        <Typography.Link href={DASHBOARD_URL} rel="noreferrer" target="_blank">
           developer.spotify.com/dashboard
         </Typography.Link>
       </Step>

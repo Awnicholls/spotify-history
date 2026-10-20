@@ -5,9 +5,33 @@
     <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Spotify Utils</title>
+    <style>
+      /* Shown until the app bundle has loaded; React replaces it. */
+      html, body { margin: 0; background: #ffffff; }
+      @media (prefers-color-scheme: dark) { html, body { background: #141414; } }
+      .boot {
+        height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center;
+        gap: 16px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        color: rgba(0, 0, 0, 0.45);
+      }
+      @media (prefers-color-scheme: dark) { .boot { color: rgba(255, 255, 255, 0.45); } }
+      .boot-title { font-size: 24px; font-weight: 600; color: inherit; filter: brightness(0.5); }
+      .boot-bar { width: 320px; height: 6px; border-radius: 3px; background: rgba(128, 128, 128, 0.2); overflow: hidden; }
+      .boot-bar::after {
+        content: ''; display: block; width: 30%; height: 100%; border-radius: 3px; background: #1db954;
+        animation: boot-slide 1.2s ease-in-out infinite;
+      }
+      @keyframes boot-slide { from { transform: translateX(-100%); } to { transform: translateX(340%); } }
+    </style>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <div class="boot">
+        <div class="boot-title">Spotify Utils</div>
+        <div class="boot-bar"></div>
+        <div>Starting up…</div>
+      </div>
+    </div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

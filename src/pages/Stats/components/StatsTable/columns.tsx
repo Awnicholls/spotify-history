@@ -1,8 +1,11 @@
-import { FilterFilled, PauseCircleFilled, PlayCircleFilled } from '@ant-design/icons';
 import type { TableColumnType } from 'antd';
+import type { JSX, ReactNode } from 'react';
+
+import { FilterFilled, PauseCircleFilled, PlayCircleFilled } from '@ant-design/icons';
 import { Button, Tooltip, Typography } from 'antd';
-import type { ReactNode } from 'react';
+
 import type { StatCategory, StatRow } from '../../../../lib/aggregate';
+
 import {
   durationDetail,
   formatDate,
@@ -14,29 +17,45 @@ import {
 import { TextFilterDropdown } from './components/TextFilterDropdown';
 
 interface CategoryLabels {
-  name: string;
-  artist?: string;
   album?: string;
-  /** Header for `uniqueItems`, if the category has it. */
-  unique?: string;
+  artist?: string;
+  name: string;
   plural: string;
   searchHint: string;
+  /** Header for `uniqueItems`, if the category has it. */
+  unique?: string;
 }
 
 export const CATEGORY_LABELS: Record<StatCategory, CategoryLabels> = {
-  songs: { name: 'Song', artist: 'Artist', album: 'Album', plural: 'songs', searchHint: 'songs, artists, albums' },
-  artists: { name: 'Artist', unique: 'Songs', plural: 'artists', searchHint: 'artists' },
-  albums: { name: 'Album', artist: 'Artist', unique: 'Songs', plural: 'albums', searchHint: 'albums, artists' },
-  shows: { name: 'Podcast', unique: 'Episodes', plural: 'podcasts', searchHint: 'podcasts' },
-  episodes: { name: 'Episode', artist: 'Podcast', plural: 'episodes', searchHint: 'episodes, podcasts' },
-  audiobooks: { name: 'Audiobook', unique: 'Chapters', plural: 'audiobooks', searchHint: 'audiobooks' },
-  platforms: { name: 'Device', unique: 'Unique items', plural: 'device types', searchHint: 'devices' },
+  albums: { artist: 'Artist', name: 'Album', plural: 'albums', searchHint: 'albums, artists', unique: 'Songs' },
+  artists: { name: 'Artist', plural: 'artists', searchHint: 'artists', unique: 'Songs' },
+  audiobooks: { name: 'Audiobook', plural: 'audiobooks', searchHint: 'audiobooks', unique: 'Chapters' },
+  episodes: { artist: 'Podcast', name: 'Episode', plural: 'episodes', searchHint: 'episodes, podcasts' },
+  platforms: { name: 'Device', plural: 'device types', searchHint: 'devices', unique: 'Unique items' },
+  shows: { name: 'Podcast', plural: 'podcasts', searchHint: 'podcasts', unique: 'Episodes' },
+  songs: { album: 'Album', artist: 'Artist', name: 'Song', plural: 'songs', searchHint: 'songs, artists, albums' },
 };
 
-export type TextField = 'name' | 'artist' | 'album';
+export type TextField = 'album' | 'artist' | 'name';
 export const TEXT_FIELDS: TextField[] = ['name', 'artist', 'album'];
-type NumberField = 'rank' | 'plays' | 'streams' | 'ms' | 'avgMs' | 'skips' | 'skipRate' | 'uniqueItems' | 'firstTs' | 'lastTs';
-export type SortField = TextField | NumberField;
+type NumberField = 'avgMs' | 'firstTs' | 'lastTs' | 'ms' | 'plays' | 'rank' | 'skipRate' | 'skips' | 'streams' | 'uniqueItems';
+export type SortField = NumberField | TextField;
+const NUMBER_FIELDS: readonly NumberField[] = [
+  'avgMs',
+  'firstTs',
+  'lastTs',
+  'ms',
+  'plays',
+  'rank',
+  'skipRate',
+  'skips',
+  'streams',
+  'uniqueItems',
+];
+
+export const isTextField = (value: unknown): value is TextField => TEXT_FIELDS.some((f) => f === value);
+export const isSortField = (value: unknown): value is SortField =>
+  isTextField(value) || NUMBER_FIELDS.some((f) => f === value);
 
 export interface SortState {
   field: SortField;
@@ -46,33 +65,33 @@ export interface SortState {
 export type ColumnFilters = Partial<Record<TextField, string>>;
 
 export interface RowPlayer {
-  currentUri: string | null;
+  currentUri: null | string;
   isPlaying: boolean;
+  onPlay: (row: StatRow) => void;
   /** Songs/episodes: queue from this row down. Others: the row's top items. */
   singleItems: boolean;
-  onPlay: (row: StatRow) => void;
 }
 
 interface ColumnState {
-  sort: SortState;
   filters: ColumnFilters;
+  sort: SortState;
 }
 
-const sortOrderFor = (field: SortField, state: ColumnState) =>
+const sortOrderFor = (field: SortField, state: ColumnState): 'ascend' | 'descend' | null =>
   state.sort.field === field ? state.sort.order : null;
 
 /** Sortable text column with a "contains" filter. Sorting/filtering are done by the hook. */
 const textColumn = (field: TextField, title: string, width: number, state: ColumnState): TableColumnType<StatRow> => ({
-  key: field,
   dataIndex: field,
-  title,
-  width,
+  filterDropdown: (props) => <TextFilterDropdown {...props} label={title} />,
+  filteredValue: state.filters[field] ? [state.filters[field]] : null,
+  filterIcon: (filtered) => <FilterFilled style={{ color: filtered ? 'var(--ant-color-primary)' : undefined }} />,
+  key: field,
+  sortDirections: ['ascend', 'descend'],
   sorter: true,
   sortOrder: sortOrderFor(field, state),
-  sortDirections: ['ascend', 'descend'],
-  filteredValue: state.filters[field] ? [state.filters[field]] : null,
-  filterDropdown: (props) => <TextFilterDropdown {...props} label={title} />,
-  filterIcon: (filtered) => <FilterFilled style={{ color: filtered ? 'var(--ant-color-primary)' : undefined }} />,
+  title,
+  width,
 });
 
 const numberColumn = (
@@ -82,46 +101,46 @@ const numberColumn = (
   state: ColumnState,
   tooltip?: string,
 ): TableColumnType<StatRow> => ({
-  key: field,
-  dataIndex: field,
-  title: tooltip ? <Tooltip title={tooltip}>{title}</Tooltip> : title,
   align: 'right',
+  dataIndex: field,
+  key: field,
+  render: (_: unknown, row) => render(row),
+  sortDirections: ['descend', 'ascend'],
   sorter: true,
   sortOrder: sortOrderFor(field, state),
-  sortDirections: ['descend', 'ascend'],
-  render: (_: unknown, row) => render(row),
+  title: tooltip ? <Tooltip title={tooltip}>{title}</Tooltip> : title,
 });
 
-const durationCell = (ms: number) => {
+const durationCell = (ms: number): JSX.Element | string => {
   const detail = durationDetail(ms);
   return detail ? <Tooltip title={detail}>{formatDuration(ms)}</Tooltip> : formatDuration(ms);
 };
 
-const dateCell = (ts: number) => <Tooltip title={formatDateTime(ts)}>{formatDate(ts)}</Tooltip>;
+const dateCell = (ts: number): JSX.Element => <Tooltip title={formatDateTime(ts)}>{formatDate(ts)}</Tooltip>;
 
 const playColumn = (player: RowPlayer): TableColumnType<StatRow> => ({
-  key: 'play',
-  width: 44,
-  fixed: 'left',
   align: 'center',
+  fixed: 'left',
+  key: 'play',
   render: (_: unknown, row) => {
-    if (!row.uris.length) return null;
-    const current = !!player.currentUri && row.uris.includes(player.currentUri);
+    if (!row.uris.length) {return null;}
+    const current = player.currentUri !== null && row.uris.includes(player.currentUri);
     const playing = current && player.isPlaying;
     return (
       <Tooltip title={playing ? 'Pause' : player.singleItems ? 'Play from here' : 'Play top songs'}>
         <Button
-          type="text"
-          size="small"
-          shape="circle"
           aria-label={playing ? 'Pause' : 'Play'}
           icon={playing ? <PauseCircleFilled /> : <PlayCircleFilled />}
-          style={{ color: current ? 'var(--ant-color-primary)' : undefined, fontSize: 18 }}
           onClick={() => player.onPlay(row)}
+          shape="circle"
+          size="small"
+          style={{ color: current ? 'var(--ant-color-primary)' : undefined, fontSize: 18 }}
+          type="text"
         />
       </Tooltip>
     );
   },
+  width: 44,
 });
 
 export const buildColumns = (
@@ -129,25 +148,25 @@ export const buildColumns = (
   minPlaySeconds: number,
   sort: SortState,
   filters: ColumnFilters,
-  player: RowPlayer | null,
+  player: null | RowPlayer,
 ): TableColumnType<StatRow>[] => {
   const labels = CATEGORY_LABELS[category];
-  const state: ColumnState = { sort, filters };
+  const state: ColumnState = { filters, sort };
 
   return [
     {
       ...numberColumn('rank', '#', (r) => (r.rank ? String(r.rank) : ''), state,
         'Rank by plays, then time listened, within the current filters'),
-      width: 64,
       fixed: 'left',
       sortDirections: ['ascend', 'descend'],
+      width: 64,
     },
     ...(player ? [playColumn(player)] : []),
     {
       ...textColumn('name', labels.name, category === 'songs' || category === 'episodes' ? 300 : 260, state),
       fixed: 'left',
       render: (_: unknown, row) => {
-        const current = !!player?.currentUri && row.uri === player.currentUri;
+        const current = player !== null && player.currentUri !== null && row.uri === player.currentUri;
         return (
           <Typography.Text strong style={current ? { color: 'var(--ant-color-primary)' } : undefined}>
             {row.name}

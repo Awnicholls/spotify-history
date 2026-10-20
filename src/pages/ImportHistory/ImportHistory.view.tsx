@@ -1,28 +1,31 @@
+import type { JSX } from 'react';
+
 import { InboxOutlined } from '@ant-design/icons';
 import { Alert, Button, Card, Flex, Spin, Typography, Upload } from 'antd';
+
 import { formatDate, formatDateTime, formatNumber } from '../../lib/format';
 import { ExportInstructions } from './components/ExportInstructions';
 
 export interface ImportHistoryViewProps {
-  busy: boolean;
-  error: string | null;
-  /** The history already loaded, if any - importing replaces it. */
-  current: { streams: number; firstTs: number; lastTs: number; importedAt: number } | null;
   beforeUpload: (file: File, batch: File[]) => boolean;
+  busy: boolean;
+  /** The history already loaded, if any - importing replaces it. */
+  current: { firstTs: number; importedAt: number; lastTs: number; streams: number; } | null;
   dismissError: () => void;
+  error: null | string;
   onCancel?: () => void;
 }
 
 export const ImportHistoryView = ({
-  busy,
-  error,
-  current,
   beforeUpload,
+  busy,
+  current,
   dismissError,
+  error,
   onCancel,
-}: ImportHistoryViewProps) => (
+}: ImportHistoryViewProps): JSX.Element => (
   <Flex justify="center">
-    <Flex vertical gap={20} style={{ width: '100%', maxWidth: 720 }}>
+    <Flex gap={20} style={{ maxWidth: 720, width: '100%' }} vertical>
       <div>
         <Typography.Title level={2} style={{ marginTop: 0 }}>
           Add your streaming history
@@ -37,29 +40,29 @@ export const ImportHistoryView = ({
 
       {current && (
         <Alert
-          type="info"
-          showIcon
-          title={`Currently loaded: ${formatNumber(current.streams)} streams, ${formatDate(
-            current.firstTs,
-          )} – ${formatDate(current.lastTs)}`}
-          description={`Imported ${formatDateTime(current.importedAt)}. Adding a new export replaces it.`}
           action={
             onCancel && (
-              <Button size="small" onClick={onCancel}>
+              <Button onClick={onCancel} size="small">
                 Back to stats
               </Button>
             )
           }
+          description={`Imported ${formatDateTime(current.importedAt)}. Adding a new export replaces it.`}
+          showIcon
+          title={`Currently loaded: ${formatNumber(current.streams)} streams, ${formatDate(
+            current.firstTs,
+          )} – ${formatDate(current.lastTs)}`}
+          type="info"
         />
       )}
 
-      <Spin spinning={busy} description="Reading your history…">
+      <Spin description="Reading your history…" spinning={busy}>
         <Upload.Dragger
           accept=".zip,.json"
-          multiple
-          showUploadList={false}
           beforeUpload={beforeUpload}
           disabled={busy}
+          multiple
+          showUploadList={false}
           style={{ padding: '32px 16px' }}
         >
           <p className="ant-upload-drag-icon">
@@ -71,7 +74,7 @@ export const ImportHistoryView = ({
       </Spin>
 
       {error && (
-        <Alert type="error" showIcon closable={{ onClose: dismissError }} title="Couldn't import" description={error} />
+        <Alert closable={{ onClose: dismissError }} description={error} showIcon title="Couldn't import" type="error" />
       )}
 
       <Card size="small" title="Don't have it yet?">

@@ -1,14 +1,16 @@
+import type { JSX } from 'react';
+
 import { Typography } from 'antd';
 
 const PRIVACY_URL = 'https://www.spotify.com/account/privacy/';
 
 /** How to request the extended streaming history export from Spotify. */
-export const ExportInstructions = () => (
+export const ExportInstructions = (): JSX.Element => (
   <ol style={{ margin: 0, paddingLeft: 20 }}>
     <li>
       <Typography.Text type="secondary">
         Open your Spotify{' '}
-        <Typography.Link href={PRIVACY_URL} target="_blank" rel="noreferrer">
+        <Typography.Link href={PRIVACY_URL} rel="noreferrer" target="_blank">
           account privacy page
         </Typography.Link>{' '}
         and scroll to &quot;Download your data&quot;.

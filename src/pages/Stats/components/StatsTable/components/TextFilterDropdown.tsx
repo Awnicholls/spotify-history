@@ -1,37 +1,54 @@
-import { Button, Flex, Input, Space } from 'antd';
+import type { InputRef } from 'antd';
 import type { FilterDropdownProps } from 'antd/es/table/interface';
+import type { JSX } from 'react';
+
+import { Button, Flex, Input, Space } from 'antd';
+import { useEffect, useRef } from 'react';
 
 /** Header filter for a text column: "<label> contains …". */
 export const TextFilterDropdown = ({
-  label,
-  setSelectedKeys,
-  selectedKeys,
-  confirm,
   clearFilters,
-}: FilterDropdownProps & { label: string }) => (
-  <Flex vertical gap={8} style={{ padding: 8 }} onKeyDown={(e) => e.stopPropagation()}>
-    <Input
-      autoFocus
-      allowClear
-      placeholder={`${label} contains…`}
-      value={selectedKeys[0] as string | undefined}
-      onChange={(e) => setSelectedKeys(e.target.value ? [e.target.value] : [])}
-      onPressEnter={() => confirm()}
-      style={{ width: 220 }}
-    />
-    <Space>
-      <Button type="primary" size="small" onClick={() => confirm()}>
-        Filter
-      </Button>
-      <Button
-        size="small"
-        onClick={() => {
-          clearFilters?.();
-          confirm();
-        }}
-      >
-        Clear
-      </Button>
-    </Space>
-  </Flex>
-);
+  confirm,
+  label,
+  selectedKeys,
+  setSelectedKeys,
+  visible,
+}: FilterDropdownProps & { label: string }): JSX.Element => {
+  // Focus the box each time the dropdown opens (instead of `autoFocus`, jsx-a11y/no-autofocus).
+  const inputRef = useRef<InputRef>(null);
+  useEffect(() => {
+    if (visible) {
+      const timer = setTimeout(() => inputRef.current?.focus(), 0);
+      return () => clearTimeout(timer);
+    }
+    return undefined;
+  }, [visible]);
+
+  return (
+    <Flex gap={8} onKeyDown={(e) => e.stopPropagation()} style={{ padding: 8 }} vertical>
+      <Input
+        allowClear
+        onChange={(e) => setSelectedKeys(e.target.value ? [e.target.value] : [])}
+        onPressEnter={() => confirm()}
+        placeholder={`${label} contains…`}
+        ref={inputRef}
+        style={{ width: 220 }}
+        value={selectedKeys[0]}
+      />
+      <Space>
+        <Button onClick={() => confirm()} size="small" type="primary">
+          Filter
+        </Button>
+        <Button
+          onClick={() => {
+            clearFilters?.();
+            confirm();
+          }}
+          size="small"
+        >
+          Clear
+        </Button>
+      </Space>
+    </Flex>
+  );
+};

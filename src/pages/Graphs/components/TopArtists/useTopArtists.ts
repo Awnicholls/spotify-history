@@ -1,9 +1,11 @@
 import { useCallback, useMemo, useState } from 'react';
+
 import type { MonthTop, YearRange } from '../../../../lib/graphs';
-import { artistTrend, inRange } from '../../../../lib/graphs';
-import { useSpotifyControls } from '../../../../spotify/SpotifyContext';
 import type { Play } from '../../../../types/history';
 import type { ArtistMode, TopArtistsViewProps } from './TopArtists.view';
+
+import { artistTrend, inRange } from '../../../../lib/graphs';
+import { useSpotifyControls } from '../../../../spotify/SpotifyContext';
 
 export const SERIES_OPTIONS = [5, 10, 15, 20];
 
@@ -18,7 +20,7 @@ export const useTopArtists = ({ plays, range }: { plays: Play[]; range: YearRang
 
   const monthsByKey = useMemo(() => {
     const out: Record<string, MonthTop> = {};
-    for (const m of trend.months) out[m.month] = m;
+    for (const m of trend.months) {out[m.month] = m;}
     return out;
   }, [trend.months]);
 
@@ -28,23 +30,23 @@ export const useTopArtists = ({ plays, range }: { plays: Play[]; range: YearRang
   const onPlayArtist = useCallback(
     (month: string, artist: string) => {
       const entry = monthsByKey[month]?.top.find((t) => t.artist === artist);
-      if (entry?.uris.length) void playUris(entry.uris);
+      if (entry?.uris.length) {void playUris(entry.uris);}
     },
     [monthsByKey, playUris],
   );
 
   return {
-    series: trend.series,
-    rows: trend.rows,
-    monthsByKey,
+    includeOthers,
     listMonths,
     mode,
+    monthsByKey,
+    onIncludeOthersChange: setIncludeOthers,
     onModeChange: setMode,
+    onPlayArtist,
+    onSeriesCountChange: setSeriesCount,
+    rows: trend.rows,
+    series: trend.series,
     seriesCount,
     seriesOptions: SERIES_OPTIONS,
-    onSeriesCountChange: setSeriesCount,
-    includeOthers,
-    onIncludeOthersChange: setIncludeOthers,
-    onPlayArtist,
   };
 };
