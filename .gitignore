@@ -43,3 +43,6 @@ Thumbs.db
 
 # castLabs EVS client venv (npm run vmp:setup)
 .venv-evs/
+
+# Internal development notes
+ARCHITECTURE.md
