@@ -10,6 +10,6 @@ export const StatsTableContainer = (props: {
   category: StatCategory;
   minPlaySeconds: number;
   rows: StatRow[];
-  /** Sticky header offset; defaults to below the app header. Use 0 inside drawers/modals. */
-  stickyOffset?: number;
+  /** Inside drawers/modals: give the table its own scroll area this tall (e.g. 'calc(100vh - 320px)'). */
+  scrollY?: string;
 }): JSX.Element => <StatsTableView {...useStatsTable(props)} />;

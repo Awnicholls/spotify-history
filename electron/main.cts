@@ -75,6 +75,9 @@ const reloadedForWidevine = new Set<number>();
 
 let appUrl: null | string = null;
 
+/** App icon: build/icon.png, a 1024px copy of build/img_2.png. */
+const APP_ICON = path.join(__dirname, '..', 'build', 'icon.png');
+
 const dataDir = (): string => app.getPath('userData');
 const configPath = (): string => path.join(dataDir(), 'config.json');
 const historyPath = (): string => path.join(dataDir(), 'history.json');
@@ -149,6 +152,8 @@ const createWindow = async (): Promise<void> => {
   const win = new BrowserWindow({
     backgroundColor: nativeTheme.shouldUseDarkColors ? '#141414' : '#ffffff',
     height: 900,
+    // Windows/Linux window + taskbar icon (packaged builds also embed it in the executable).
+    icon: APP_ICON,
     minHeight: 600,
     minWidth: 1024,
     show: false,
@@ -187,6 +192,8 @@ const createWindow = async (): Promise<void> => {
 };
 
 void app.whenReady().then(() => {
+  // macOS takes the Dock icon from the bundle; in development there is none, so set it.
+  if (!app.isPackaged) {app.dock?.setIcon(APP_ICON);}
   registerIpc();
   void waitForWidevine();
   void createWindow();

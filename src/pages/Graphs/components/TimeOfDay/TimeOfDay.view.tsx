@@ -17,12 +17,14 @@ export interface TimeOfDayViewProps {
   /** [weekday 0 = Mon][hour] -> ms listened. */
   cells: number[][];
   max: number;
+  /** Quantile breakpoints for the colour steps. */
+  thresholds: number[];
 }
 
 const HOURS = Array.from({ length: 24 }, (_, h) => h);
 
 /** Weekday x hour heatmap of when you listen. Display only. */
-export const TimeOfDayView = ({ busiestDay, busiestHour, busiestSlot, byDay, cells, max }: TimeOfDayViewProps): JSX.Element => {
+export const TimeOfDayView = ({ busiestDay, busiestHour, busiestSlot, byDay, cells, thresholds }: TimeOfDayViewProps): JSX.Element => {
   const { token } = theme.useToken();
   const empty = token.colorFillTertiary;
 
@@ -33,7 +35,7 @@ export const TimeOfDayView = ({ busiestDay, busiestHour, busiestSlot, byDay, cel
         <Statistic title="Busiest day" value={busiestDay} />
         <Statistic title="Peak slot" value={busiestSlot} />
         <span style={{ marginLeft: 'auto' }}>
-          <HeatLegend accent={token.colorPrimary} empty={empty} />
+          <HeatLegend accent={token.colorPrimary} empty={empty} format={formatDuration} thresholds={thresholds} />
         </span>
       </Flex>
 
@@ -65,7 +67,7 @@ export const TimeOfDayView = ({ busiestDay, busiestHour, busiestSlot, byDay, cel
                 return (
                   <div
                     key={hour}
-                    style={{ background: heatColor(token.colorPrimary, ms, max, empty), borderRadius: 4, height: 28 }}
+                    style={{ background: heatColor(token.colorPrimary, ms, thresholds, empty), borderRadius: 4, height: 28 }}
                     title={`${day} ${String(hour).padStart(2, '0')}:00–${String((hour + 1) % 24).padStart(2, '0')}:00 · ${formatDuration(ms)}`}
                   />
                 );

@@ -58,13 +58,16 @@
     },
     "artifactName": "Spotify-Utils-${version}-${os}-${arch}.${ext}",
     "directories": {
-      "output": "release"
+      "output": "release",
+      "buildResources": "build"
     },
     "files": [
       "dist/**/*",
       "dist-electron/**/*",
-      "package.json"
+      "package.json",
+      "build/icon.png"
     ],
+    "icon": "build/icon.png",
     "afterPack": "scripts/vmp-sign.cjs",
     "afterSign": "scripts/vmp-sign-after-sign.cjs",
     "mac": {

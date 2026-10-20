@@ -7,14 +7,19 @@ import type { ColumnFilters, SortField, SortState } from './columns';
 import type { StatsTableViewProps } from './StatsTable.view';
 
 import { HEADER_HEIGHT } from '../../../../lib/layout';
+import { useColumnSettings } from '../../../../settings/ColumnSettingsContext';
 import { useSpotifyControls } from '../../../../spotify/SpotifyContext';
-import { isSortField, isTextField, TEXT_FIELDS } from './columns';
+import { columnChoices, isSortField, isTextField, TEXT_FIELDS } from './columns';
 
 interface UseStatsTableArgs {
   category: StatCategory;
   minPlaySeconds: number;
   rows: StatRow[];
-  stickyOffset?: number;
+  /**
+   * Give the table its own scroll area this tall (header fixed inside it) instead of a header
+   * that sticks under the app bar. For tables inside drawers/modals.
+   */
+  scrollY?: string;
 }
 
 const DEFAULT_SORT: SortState = { field: 'plays', order: 'descend' };
@@ -56,8 +61,11 @@ export const useStatsTable = ({
   category,
   minPlaySeconds,
   rows,
-  stickyOffset = HEADER_HEIGHT,
+  scrollY,
 }: UseStatsTableArgs): StatsTableViewProps => {
+  const columnSettings = useColumnSettings();
+  const hiddenColumns = columnSettings.hidden[category] ?? [];
+  const [columnsOpen, setColumnsOpen] = useState(false);
   const spotify = useSpotifyControls();
   const [search, setSearch] = useState('');
   const [minPlays, setMinPlays] = useState<null | number>(null);
@@ -120,18 +128,32 @@ export const useStatsTable = ({
   return {
     category,
     columnFilters,
+    columnSettings: {
+      choices: columnChoices(category),
+      hidden: hiddenColumns,
+      onClose: () => setColumnsOpen(false),
+      onShowAll: () => columnSettings.setHidden(category, []),
+      onToggle: (key, visible) =>
+        columnSettings.setHidden(
+          category,
+          visible ? hiddenColumns.filter((k) => k !== key) : [...hiddenColumns, key],
+        ),
+      open: columnsOpen,
+    },
     minPlays,
     minPlaySeconds,
     onMinPlaysChange: setMinPlays,
+    onOpenColumnSettings: () => setColumnsOpen(true),
     onSearchChange: setSearch,
     onTableChange,
     player: canPlay
       ? { currentUri: spotify.currentUri, isPlaying: spotify.isPlaying, onPlay, singleItems }
       : null,
     rows: visibleRows,
+    scrollY,
     search,
     sort,
-    stickyOffset,
+    stickyOffset: HEADER_HEIGHT,
     totalRows: rows.length,
   };
 };

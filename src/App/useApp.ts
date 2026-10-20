@@ -3,6 +3,8 @@ import type { ThemeConfig } from 'antd';
 import { theme } from 'antd';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
+import type { StatCategory } from '../lib/aggregate';
+import type { ColumnSettings } from '../settings/ColumnSettingsContext';
 import type { AppConfig, ThemeSettings } from '../types/config';
 import type { StoredHistory } from '../types/history';
 import type { AppViewProps, Page } from './App.view';
@@ -115,6 +117,22 @@ export const useApp = (): AppViewProps => {
 
   const resetTheme = useCallback(() => updateTheme(DEFAULT_CONFIG.theme), [updateTheme]);
 
+  const setHiddenColumns = useCallback(
+    (category: StatCategory, keys: string[]) => {
+      setConfig((prev) => {
+        const next = { ...prev, hiddenColumns: { ...prev.hiddenColumns, [category]: keys } };
+        persistConfig(next);
+        return next;
+      });
+    },
+    [persistConfig],
+  );
+
+  const columnSettings = useMemo<ColumnSettings>(
+    () => ({ hidden: config.hiddenColumns, setHidden: setHiddenColumns }),
+    [config.hiddenColumns, setHiddenColumns],
+  );
+
   const saveClientId = useCallback(
     (clientId: string) => {
       updateConfig({ clientId });
@@ -163,6 +181,7 @@ export const useApp = (): AppViewProps => {
 
   return {
     clearHistory,
+    columnSettings,
     config,
     history,
     isDark,

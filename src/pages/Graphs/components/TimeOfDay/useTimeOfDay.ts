@@ -4,6 +4,7 @@ import type { YearRange } from '../../../../lib/graphs';
 import type { Play } from '../../../../types/history';
 import type { TimeOfDayViewProps } from './TimeOfDay.view';
 
+import { heatThresholds } from '../../../../lib/color';
 import { buildHourBuckets, hourGrid, WEEKDAYS } from '../../../../lib/graphs';
 
 const hourLabel = (h: number): string => `${String(h).padStart(2, '0')}:00`;
@@ -33,5 +34,7 @@ export const useTimeOfDay = ({ plays, range }: { plays: Play[]; range: YearRange
     };
   }, [cells, max]);
 
-  return { cells, max, ...summary };
+  const thresholds = useMemo(() => heatThresholds(cells.flat()), [cells]);
+
+  return { cells, max, ...summary, thresholds };
 };

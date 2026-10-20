@@ -5,6 +5,7 @@ import { Flex, Segmented, theme, Typography } from 'antd';
 import type { StatRow } from '../../../../lib/aggregate';
 import type { MonthGrid } from '../../../../lib/graphs';
 
+import { formatDuration, formatNumber } from '../../../../lib/format';
 import { HeatLegend } from '../HeatLegend';
 import { DayDetailDrawer } from './components/DayDetailDrawer';
 import { MonthCard } from './components/MonthCard';
@@ -19,7 +20,6 @@ export interface MonthHeatmapViewProps {
     title: string;
     yearsWithPlays: number;
   } | null;
-  max: number;
   metric: HeatMetric;
   months: MonthGrid[];
   onCloseDetail: () => void;
@@ -29,11 +29,12 @@ export interface MonthHeatmapViewProps {
   rangeLabel: string;
   /** Lay days out by weekday (only meaningful for one year). */
   singleYear: boolean;
+  /** Quantile breakpoints for the colour steps. */
+  thresholds: number[];
 }
 
 export const MonthHeatmapView = ({
   detail,
-  max,
   metric,
   months,
   onCloseDetail,
@@ -42,6 +43,7 @@ export const MonthHeatmapView = ({
   onSelectMonth,
   rangeLabel,
   singleYear,
+  thresholds,
 }: MonthHeatmapViewProps): JSX.Element => {
   const { token } = theme.useToken();
 
@@ -62,7 +64,12 @@ export const MonthHeatmapView = ({
             : `Each calendar day summed across ${rangeLabel}. Click a day (or a month name) to see what you played on it.`}
         </Typography.Text>
         <span style={{ marginLeft: 'auto' }}>
-          <HeatLegend accent={token.colorPrimary} empty={token.colorFillTertiary} />
+          <HeatLegend
+            accent={token.colorPrimary}
+            empty={token.colorFillTertiary}
+            format={metric === 'time' ? formatDuration : (v) => `${formatNumber(v)} streams`}
+            thresholds={thresholds}
+          />
         </span>
       </Flex>
 
@@ -73,10 +80,10 @@ export const MonthHeatmapView = ({
             empty={token.colorFillTertiary}
             grid={m}
             key={m.month}
-            max={max}
             metric={metric}
             onSelectDay={onSelectDay}
             onSelectMonth={onSelectMonth}
+            thresholds={thresholds}
             weekdayAligned={singleYear}
           />
         ))}

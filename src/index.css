@@ -15,6 +15,36 @@ body,
   vertical-align: middle;
 }
 
+/* Minimal scrollbars everywhere: just a rounded thumb - no track box, no arrow buttons.
+   (Electron is Chromium, so the ::-webkit-scrollbar rules apply on every OS.)
+   Chromium ignores those rules on any element with the standard scrollbar-color/-width set,
+   which antd does on tables, so reset them. */
+* {
+  scrollbar-color: auto !important;
+  scrollbar-width: auto !important;
+}
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+  background: transparent;
+}
+::-webkit-scrollbar-track,
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+::-webkit-scrollbar-button {
+  display: none;
+  width: 0;
+  height: 0;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(128, 128, 128, 0.4);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(128, 128, 128, 0.65);
+}
+
 body {
   font-family:
     -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;

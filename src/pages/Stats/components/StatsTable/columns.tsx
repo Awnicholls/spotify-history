@@ -1,8 +1,8 @@
 import type { TableColumnType } from 'antd';
 import type { JSX, ReactNode } from 'react';
 
-import { FilterFilled, PauseCircleFilled, PlayCircleFilled } from '@ant-design/icons';
-import { Button, Tooltip, Typography } from 'antd';
+import { FilterFilled, PauseCircleFilled, PlayCircleFilled, SettingOutlined } from '@ant-design/icons';
+import { Button, Flex, Tooltip, Typography } from 'antd';
 
 import type { StatCategory, StatRow } from '../../../../lib/aggregate';
 
@@ -143,23 +143,71 @@ const playColumn = (player: RowPlayer): TableColumnType<StatRow> => ({
   width: 44,
 });
 
-export const buildColumns = (
-  category: StatCategory,
-  minPlaySeconds: number,
-  sort: SortState,
-  filters: ColumnFilters,
-  player: null | RowPlayer,
-): TableColumnType<StatRow>[] => {
+/** Columns that can be switched off in the column settings (name, rank and play always show). */
+export const columnChoices = (category: StatCategory): { key: string; label: string }[] => {
+  const labels = CATEGORY_LABELS[category];
+  return [
+    ...(labels.artist ? [{ key: 'artist', label: labels.artist }] : []),
+    ...(labels.album ? [{ key: 'album', label: labels.album }] : []),
+    { key: 'plays', label: 'Plays' },
+    { key: 'streams', label: 'Streams' },
+    { key: 'ms', label: 'Time listened' },
+    { key: 'avgMs', label: 'Avg listen' },
+    ...(labels.unique ? [{ key: 'uniqueItems', label: labels.unique }] : []),
+    { key: 'skips', label: 'Skips' },
+    { key: 'skipRate', label: 'Skip %' },
+    { key: 'firstTs', label: 'First played' },
+    { key: 'lastTs', label: 'Last played' },
+  ];
+};
+
+export interface BuildColumnsOptions {
+  category: StatCategory;
+  filters: ColumnFilters;
+  /** Column keys switched off in the column settings. */
+  hidden: readonly string[];
+  minPlaySeconds: number;
+  onOpenColumnSettings: () => void;
+  player: null | RowPlayer;
+  sort: SortState;
+}
+
+export const buildColumns = ({
+  category,
+  filters,
+  hidden,
+  minPlaySeconds,
+  onOpenColumnSettings,
+  player,
+  sort,
+}: BuildColumnsOptions): TableColumnType<StatRow>[] => {
   const labels = CATEGORY_LABELS[category];
   const state: ColumnState = { filters, sort };
 
-  return [
+  const columns: TableColumnType<StatRow>[] = [
     {
-      ...numberColumn('rank', '#', (r) => (r.rank ? String(r.rank) : ''), state,
-        'Rank by plays, then time listened, within the current filters'),
+      ...numberColumn('rank', '#', (r) => (r.rank ? String(r.rank) : ''), state),
       fixed: 'left',
       sortDirections: ['ascend', 'descend'],
-      width: 64,
+      title: (
+        <Flex align="center" gap={2}>
+          <Tooltip title="Rank by plays, then time listened, within the current filters">#</Tooltip>
+          <Tooltip title="Choose columns">
+            <Button
+              aria-label="Choose columns"
+              icon={<SettingOutlined />}
+              onClick={(e) => {
+                // Don't let the click also sort by rank.
+                e.stopPropagation();
+                onOpenColumnSettings();
+              }}
+              size="small"
+              type="text"
+            />
+          </Tooltip>
+        </Flex>
+      ),
+      width: 84,
     },
     ...(player ? [playColumn(player)] : []),
     {
@@ -188,4 +236,5 @@ export const buildColumns = (
     numberColumn('firstTs', 'First played', (r) => dateCell(r.firstTs), state),
     numberColumn('lastTs', 'Last played', (r) => dateCell(r.lastTs), state),
   ];
+  return columns.filter((c) => typeof c.key !== 'string' || !hidden.includes(c.key));
 };

@@ -6,22 +6,28 @@ import { Flex, Input, InputNumber, Table, Typography } from 'antd';
 
 import type { StatCategory, StatRow } from '../../../../lib/aggregate';
 import type { ColumnFilters, RowPlayer, SortState } from './columns';
+import type { ColumnSettingsProps } from './components/ColumnSettingsDrawer';
 
 import { formatNumber } from '../../../../lib/format';
 import { buildColumns, CATEGORY_LABELS } from './columns';
+import { ColumnSettingsDrawer } from './components/ColumnSettingsDrawer';
 
 export interface StatsTableViewProps {
   category: StatCategory;
   columnFilters: ColumnFilters;
+  columnSettings: ColumnSettingsProps;
   minPlays: null | number;
   minPlaySeconds: number;
   onMinPlaysChange: (minPlays: null | number) => void;
+  onOpenColumnSettings: () => void;
   onSearchChange: (search: string) => void;
   onTableChange: TableProps<StatRow>['onChange'];
   /** Null for tables with nothing playable (devices). */
   player: null | RowPlayer;
   /** Already filtered and sorted, in on-screen order. */
   rows: StatRow[];
+  /** Fixed-height scroll area (drawers) instead of a header sticky under the app bar. */
+  scrollY?: string;
   search: string;
   sort: SortState;
   stickyOffset: number;
@@ -31,13 +37,16 @@ export interface StatsTableViewProps {
 export const StatsTableView = ({
   category,
   columnFilters,
+  columnSettings,
   minPlays,
   minPlaySeconds,
   onMinPlaysChange,
+  onOpenColumnSettings,
   onSearchChange,
   onTableChange,
   player,
   rows,
+  scrollY,
   search,
   sort,
   stickyOffset,
@@ -68,7 +77,15 @@ export const StatsTableView = ({
       </Flex>
 
       <Table<StatRow>
-        columns={buildColumns(category, minPlaySeconds, sort, columnFilters, player)}
+        columns={buildColumns({
+          category,
+          filters: columnFilters,
+          hidden: columnSettings.hidden,
+          minPlaySeconds,
+          onOpenColumnSettings,
+          player,
+          sort,
+        })}
         dataSource={rows}
         onChange={onTableChange}
         pagination={{
@@ -78,11 +95,13 @@ export const StatsTableView = ({
           showTotal: (total, [from, to]) => `${formatNumber(from)}–${formatNumber(to)} of ${formatNumber(total)}`,
         }}
         rowKey="key"
-        scroll={{ x: 'max-content' }}
+        scroll={scrollY ? { x: 'max-content', y: scrollY } : { x: 'max-content' }}
         showSorterTooltip={false}
         size="small"
-        sticky={{ offsetHeader: stickyOffset }}
+        sticky={scrollY ? false : { offsetHeader: stickyOffset }}
       />
+
+      <ColumnSettingsDrawer {...columnSettings} />
     </Flex>
   );
 };

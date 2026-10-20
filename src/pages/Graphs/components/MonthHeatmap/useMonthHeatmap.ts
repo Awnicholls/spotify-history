@@ -5,6 +5,7 @@ import type { Play } from '../../../../types/history';
 import type { HeatMetric, MonthHeatmapViewProps } from './MonthHeatmap.view';
 
 import { aggregate } from '../../../../lib/aggregate';
+import { heatThresholds } from '../../../../lib/color';
 import { buildDayBuckets, MONTH_NAMES, monthGrids, playsOnDate } from '../../../../lib/graphs';
 
 const MIN_PLAY_MS = 30_000;
@@ -21,7 +22,12 @@ export const useMonthHeatmap = ({ plays, range }: { plays: Play[]; range: YearRa
   const onSelectMonth = useCallback((month: number) => setSelected({ day: null, month }), []);
 
   const buckets = useMemo(() => buildDayBuckets(plays), [plays]);
-  const { maxMs, maxStreams, months } = useMemo(() => monthGrids(buckets, range), [buckets, range]);
+  const { months } = useMemo(() => monthGrids(buckets, range), [buckets, range]);
+  // Colour steps by quantile of the visible days, so differences stay visible with lots of data.
+  const thresholds = useMemo(
+    () => heatThresholds(months.flatMap((m) => m.days.map((d) => (metric === 'time' ? d.ms : d.streams)))),
+    [months, metric],
+  );
 
   const detail = useMemo(() => {
     if (!selected) {return null;}
@@ -38,7 +44,6 @@ export const useMonthHeatmap = ({ plays, range }: { plays: Play[]; range: YearRa
 
   return {
     detail,
-    max: metric === 'time' ? maxMs : maxStreams,
     metric,
     months,
     onCloseDetail: () => setSelected(null),
@@ -47,5 +52,6 @@ export const useMonthHeatmap = ({ plays, range }: { plays: Play[]; range: YearRa
     onSelectMonth,
     rangeLabel: rangeLabel(range),
     singleYear: range[0] === range[1],
+    thresholds,
   };
 };

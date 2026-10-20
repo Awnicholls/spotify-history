@@ -27,7 +27,7 @@ export const DayDetailDrawer = ({
             <Statistic title="Songs" value={formatNumber(detail.songs.length)} />
             <Statistic title="Years with plays" value={detail.yearsWithPlays} />
           </Flex>
-          <StatsTableContainer category="songs" minPlaySeconds={30} rows={detail.songs} stickyOffset={0} />
+          <StatsTableContainer category="songs" minPlaySeconds={30} rows={detail.songs} scrollY="calc(100vh - 380px)" />
         </Flex>
       ))}
   </Drawer>

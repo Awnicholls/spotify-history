@@ -12,10 +12,10 @@ interface MonthCardProps {
   accent: string;
   empty: string;
   grid: MonthGrid;
-  max: number;
   metric: HeatMetric;
   onSelectDay: (month: number, day: number) => void;
   onSelectMonth: (month: number) => void;
+  thresholds: readonly number[];
   weekdayAligned: boolean;
 }
 
@@ -24,7 +24,7 @@ const describe = (ms: number, streams: number): string =>
 
 /** One month: a 7-wide grid of day cells coloured by listening. */
 export const MonthCard = memo(
-  ({ accent, empty, grid, max, metric, onSelectDay, onSelectMonth, weekdayAligned }: MonthCardProps) => {
+  ({ accent, empty, grid, metric, onSelectDay, onSelectMonth, thresholds, weekdayAligned }: MonthCardProps) => {
     const name = MONTH_NAMES[grid.month];
     const lead = weekdayAligned ? grid.firstWeekday : 0;
 
@@ -68,7 +68,7 @@ export const MonthCard = memo(
                 onClick={() => onSelectDay(grid.month, d.day)}
                 style={{
                   aspectRatio: '1',
-                  background: heatColor(accent, value, max, empty),
+                  background: heatColor(accent, value, thresholds, empty),
                   border: 0,
                   borderRadius: 3,
                   color: 'transparent',

@@ -11,6 +11,7 @@ import {
 } from '@ant-design/icons';
 import { Alert, App as AntApp, ConfigProvider, Flex, Layout, Menu, Typography } from 'antd';
 
+import type { ColumnSettings } from '../settings/ColumnSettingsContext';
 import type { AppConfig, ThemeSettings } from '../types/config';
 import type { StoredHistory } from '../types/history';
 import type { LoadProgress } from './useApp';
@@ -23,6 +24,7 @@ import { PlaylistsContainer } from '../pages/Playlists/Playlists.container';
 import { SettingsContainer } from '../pages/Settings/Settings.container';
 import { SetupContainer } from '../pages/Setup/Setup.container';
 import { StatsContainer } from '../pages/Stats/Stats.container';
+import { ColumnSettingsContext } from '../settings/ColumnSettingsContext';
 import { SpotifyProvider } from '../spotify/SpotifyProvider';
 
 export type Page = 'graphs' | 'import' | 'playlists' | 'settings' | 'setup' | 'stats';
@@ -31,6 +33,7 @@ const PAGES: readonly Page[] = ['graphs', 'import', 'playlists', 'settings', 'se
 const isPage = (key: string): key is Page => PAGES.some((p) => p === key);
 
 export interface AppViewProps {
+  columnSettings: ColumnSettings;
   clearHistory: () => Promise<void>;
   config: AppConfig;
   history: null | StoredHistory;
@@ -108,6 +111,7 @@ export const AppView = (props: AppViewProps): JSX.Element => {
     <ConfigProvider theme={themeConfig}>
       <AntApp>
         <SpotifyProvider clientId={config.clientId}>
+        <ColumnSettingsContext.Provider value={props.columnSettings}>
         <Layout style={{ minHeight: '100vh' }}>
           {showNav && (
             <Layout.Header
@@ -150,6 +154,7 @@ export const AppView = (props: AppViewProps): JSX.Element => {
             )}
           </Layout.Content>
         </Layout>
+        </ColumnSettingsContext.Provider>
         </SpotifyProvider>
       </AntApp>
     </ConfigProvider>

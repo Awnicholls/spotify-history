@@ -1,4 +1,5 @@
 import type { ThemeSource } from '../../shared/bridge';
+import type { StatCategory } from '../lib/aggregate';
 
 export type ThemeMode = ThemeSource;
 
@@ -14,6 +15,8 @@ export interface ThemeSettings {
 export interface AppConfig {
   /** Spotify developer-dashboard client ID (no secret - auth will use PKCE). */
   clientId: string;
+  /** Stats-table columns the user turned off, per table (column keys). */
+  hiddenColumns: Partial<Record<StatCategory, string[]>>;
   theme: ThemeSettings;
 }
 
@@ -36,6 +39,7 @@ export const DEFAULT_THEME: ThemeSettings = {
 
 export const DEFAULT_CONFIG: AppConfig = {
   clientId: '',
+  hiddenColumns: {},
   theme: DEFAULT_THEME,
 };
 
